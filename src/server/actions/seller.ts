@@ -32,10 +32,17 @@ export async function saveSellerProfile(_prev: ActionResult | null, form: FormDa
     const data = parsed.data;
     const taken = await db.sellerProfile.findUnique({ where: { slug: data.slug }, select: { userId: true } });
     if (taken && taken.userId !== user.id) {
-      return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: { slug: "That shop address is taken. Try another." } };
+      return {
+        ok: false,
+        error: "Please fix the highlighted fields.",
+        fieldErrors: { slug: "That shop address is taken. Try another." },
+      };
     }
 
-    const existing = await db.sellerProfile.findUnique({ where: { userId: user.id }, select: { id: true, onboardedAt: true } });
+    const existing = await db.sellerProfile.findUnique({
+      where: { userId: user.id },
+      select: { id: true, onboardedAt: true },
+    });
     firstTime = !existing?.onboardedAt;
     const profile = await db.$transaction(async (tx) => {
       const saved = await tx.sellerProfile.upsert({
@@ -45,7 +52,10 @@ export async function saveSellerProfile(_prev: ActionResult | null, form: FormDa
         select: { id: true },
       });
       if (!user.roles.includes("SELLER")) {
-        await tx.user.update({ where: { id: user.id }, data: { roles: { set: [...new Set([...user.roles, "SELLER" as const])] } } });
+        await tx.user.update({
+          where: { id: user.id },
+          data: { roles: { set: [...new Set([...user.roles, "SELLER" as const])] } },
+        });
       }
       return saved;
     });

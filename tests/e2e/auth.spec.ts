@@ -4,7 +4,7 @@ test.describe("sign up and sign in", () => {
   test("a new visitor can create an account and starts as a buyer", async ({ page }) => {
     await signUp(page, "Test Buyer");
     await expect(page.getByRole("heading", { name: "Test Buyer" })).toBeVisible();
-    await expect(page.getByTestId("account-roles")).toHaveText("buyer");
+    await expect(page.getByTestId("account-roles").filter({ visible: true })).toHaveText("buyer");
   });
 
   test("sign-up validates input and shows field errors", async ({ page }) => {
@@ -52,27 +52,27 @@ test.describe("roles", () => {
 
   test("admins and moderators can see the admin area", async ({ page }) => {
     await signInAs(page, seeded.admin, "/admin");
-    await expect(page.getByTestId("admin-stats")).toContainText("Active listings");
+    await expect(page.getByTestId("admin-stats").filter({ visible: true })).toContainText("Active listings");
     await signInAs(page, seeded.moderator, "/admin");
-    await expect(page.getByTestId("admin-stats")).toBeVisible();
+    await expect(page.getByTestId("admin-stats").filter({ visible: true })).toBeVisible();
   });
 
   test("sellers see only their own listing counts", async ({ page }) => {
     await signInAs(page, seeded.seller, "/sell");
     // Wanjiku Electronics has 11 active listings in the seed; other sellers' listings are not counted.
-    await expect(page.getByTestId("seller-stats")).toContainText("Active listings11");
+    await expect(page.getByTestId("seller-stats").filter({ visible: true })).toContainText("Active listings11");
   });
 
   test("role switching updates what a user can access", async ({ page }) => {
     await signUp(page, "Role Switcher");
     await page.goto("/sell");
-    await expect(page.getByText("Open your shop")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Open your shop" })).toBeVisible();
 
     await page.goto("/dev/roles");
     await page.getByRole("button", { name: /seller role/ }).click();
     await expect(page.getByRole("button", { name: /seller role/ })).toHaveAttribute("aria-pressed", "true");
     await page.goto("/sell");
-    await expect(page.getByTestId("seller-stats")).toContainText("Active listings0");
+    await expect(page.getByTestId("seller-stats").filter({ visible: true })).toContainText("Active listings0");
 
     await page.goto("/admin");
     await expect(page.getByText("We couldn't find that page")).toBeVisible();
@@ -80,9 +80,9 @@ test.describe("roles", () => {
     await page.getByRole("button", { name: /admin role/ }).click();
     await expect(page.getByRole("button", { name: /admin role/ })).toHaveAttribute("aria-pressed", "true");
     await page.goto("/admin");
-    await expect(page.getByTestId("admin-stats")).toBeVisible();
+    await expect(page.getByTestId("admin-stats").filter({ visible: true })).toBeVisible();
 
     await page.goto("/account");
-    await expect(page.getByTestId("account-roles")).toHaveText(/buyer.*seller.*admin/);
+    await expect(page.getByTestId("account-roles").filter({ visible: true })).toHaveText(/buyer.*seller.*admin/);
   });
 });

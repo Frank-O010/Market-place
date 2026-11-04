@@ -4,6 +4,7 @@ import * as React from "react";
 import { nairobiAreas } from "@/config/locations";
 import { slugify } from "@/lib/utils";
 import { saveSellerProfile } from "@/server/actions/seller";
+import { submitKeepingValues } from "@/components/sell/submit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/label";
@@ -11,15 +12,24 @@ import { NativeSelect, Textarea } from "@/components/ui/native-select";
 
 type Profile = { displayName: string; slug: string; location: string; bio: string };
 
-export function SellerProfileForm({ initial, submitLabel }: { initial: Profile; submitLabel: string }) {
+export function SellerProfileForm({
+  initial,
+  submitLabel,
+  autoSlug = false,
+}: {
+  initial: Profile;
+  submitLabel: string;
+  /** Suggest the shop address from the shop name until the seller edits it. */
+  autoSlug?: boolean;
+}) {
   const [state, action, pending] = React.useActionState(saveSellerProfile, null);
   const [name, setName] = React.useState(initial.displayName);
   const [slug, setSlug] = React.useState(initial.slug);
-  const [slugTouched, setSlugTouched] = React.useState(Boolean(initial.slug));
+  const [slugTouched, setSlugTouched] = React.useState(!autoSlug);
   const errors = state && !state.ok ? (state.fieldErrors ?? {}) : {};
 
   return (
-    <form action={action} className="flex max-w-xl flex-col gap-4" noValidate>
+    <form onSubmit={submitKeepingValues(action)} className="flex max-w-xl flex-col gap-4" noValidate>
       {state && !state.ok && (
         <p role="alert" className="border-danger bg-danger-subtle rounded-md border p-3 text-sm">
           {state.error}

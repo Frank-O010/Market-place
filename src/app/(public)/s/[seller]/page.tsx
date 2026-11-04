@@ -40,7 +40,13 @@ async function Seller({
 }) {
   const seller = await getPublicSeller((await params).seller);
   if (!seller) notFound();
-  const page = z.coerce.number().int().min(1).max(50).catch(1).parse((await searchParams).page);
+  const page = z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .catch(1)
+    .parse((await searchParams).page);
   const { items, total } = await getSellerListings(seller.id, page, PER_PAGE);
   const rating = seller.ratingCount > 0 ? seller.ratingAverage / 100 : null;
   const since = new Intl.DateTimeFormat("en-KE", { month: "long", year: "numeric" }).format(seller.createdAt);

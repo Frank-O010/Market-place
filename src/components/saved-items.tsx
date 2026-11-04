@@ -19,6 +19,8 @@ const SavedContext = React.createContext<{
 
 export function SavedItemsProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<SavedState>(null);
+  const [version, setVersion] = React.useState(0);
+  const reload = React.useCallback(() => setVersion((v) => v + 1), []);
   React.useEffect(() => {
     let cancelled = false;
     fetch("/api/saved", { credentials: "same-origin", cache: "no-store" })
@@ -30,7 +32,7 @@ export function SavedItemsProvider({ children }: { children: React.ReactNode }) 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [version]);
   const update = React.useCallback((id: string, saved: boolean) => {
     setState((prev) => {
       if (!prev) return prev;
@@ -40,7 +42,28 @@ export function SavedItemsProvider({ children }: { children: React.ReactNode }) 
       return { ...prev, ids };
     });
   }, []);
-  return <SavedContext.Provider value={{ state, update }}>{children}</SavedContext.Provider>;
+  return (
+    <SavedContext.Provider value={{ state, update }}>
+      {children}
+      {/* Reload on navigation: signing in or out happens without a full page load. */}
+      <React.Suspense fallback={null}>
+        <ReloadOnNavigation onNavigate={reload} />
+      </React.Suspense>
+    </SavedContext.Provider>
+  );
+}
+
+function ReloadOnNavigation({ onNavigate }: { onNavigate: () => void }) {
+  const pathname = usePathname();
+  const first = React.useRef(true);
+  React.useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    onNavigate();
+  }, [pathname, onNavigate]);
+  return null;
 }
 
 export function SaveButton({
@@ -56,16 +79,11 @@ export function SaveButton({
 }) {
   const context = React.useContext(SavedContext);
   const router = useRouter();
-  const pathname = usePathname();
   const [pending, startTransition] = React.useTransition();
   const [local, setLocal] = React.useState(initialSaved);
   const saved = local ?? context?.state?.ids.has(listingId) ?? false;
 
   function toggle() {
-    if (context?.state && !context.state.signedIn) {
-      router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-      return;
-    }
     const next = !saved;
     setLocal(next);
     context?.update(listingId, next);
@@ -74,8 +92,9 @@ export function SaveButton({
       if (!result.ok) {
         setLocal(!next);
         context?.update(listingId, !next);
-        if (/sign in/i.test(result.error)) router.push(`/sign-in?redirect_url=${encodeURIComponent(pathname)}`);
-        else toast.error(result.error);
+        if (/sign in/i.test(result.error)) {
+          router.push(`/sign-in?redirect_url=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        } else toast.error(result.error);
         return;
       }
       toast.success(next ? "Saved. Find it under Saved items." : "Removed from saved items.");

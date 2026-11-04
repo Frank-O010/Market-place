@@ -104,7 +104,15 @@ export async function ListingBrowser({ search, basePath }: { search: ListingSear
           <Button type="submit">Show results</Button>
           {filtered && (
             <Button asChild variant="ghost">
-              <Link href={searchHref(basePath, { ...search, minPrice: undefined, maxPrice: undefined, conditions: [], location: undefined })}>
+              <Link
+                href={searchHref(basePath, {
+                  ...search,
+                  minPrice: undefined,
+                  maxPrice: undefined,
+                  conditions: [],
+                  location: undefined,
+                })}
+              >
                 Clear filters
               </Link>
             </Button>

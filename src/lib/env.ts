@@ -41,13 +41,16 @@ const serverSchema = z
     R2_SECRET_ACCESS_KEY: optionalString,
     R2_BUCKET: optionalString,
     NEXT_PUBLIC_IMAGE_ORIGIN: optionalUrl,
-    // Signs local-disk upload links. A random per-process secret is used when unset.
+    // Signs local-disk upload links. A secret derived from DATABASE_URL is used when unset.
     UPLOAD_SIGNING_SECRET: optionalString,
 
     // Meilisearch for typo-tolerant search. Without it, search uses Postgres fuzzy matching.
     MEILISEARCH_HOST: optionalUrl,
     MEILISEARCH_ADMIN_KEY: optionalString,
-    MEILISEARCH_INDEX_PREFIX: z.string().regex(/^[a-z0-9_]*$/).default(""),
+    MEILISEARCH_INDEX_PREFIX: z
+      .string()
+      .regex(/^[a-z0-9_]*$/)
+      .default(""),
 
     // Vercel sends this as a bearer token to cron routes (search index repair).
     CRON_SECRET: optionalString,

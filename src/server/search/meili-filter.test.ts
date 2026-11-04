@@ -4,7 +4,13 @@ import { meiliFilter, meiliSort, quote } from "./meili-filter";
 
 describe("meiliFilter", () => {
   it("builds one clause per filter", () => {
-    const search = parseListingSearch({ category: "phones-tablets", min: "1000", max: "20000", condition: "NEW,GOOD", location: "Westlands" });
+    const search = parseListingSearch({
+      category: "phones-tablets",
+      min: "1000",
+      max: "20000",
+      condition: "NEW,GOOD",
+      location: "Westlands",
+    });
     expect(meiliFilter(search)).toEqual([
       'categorySlugs = "phones-tablets"',
       "priceMinor >= 100000",

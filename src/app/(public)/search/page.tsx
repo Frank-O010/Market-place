@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { connection } from "next/server";
 import { parseListingSearch } from "@/lib/search-params";
 import { checkRateLimit } from "@/server/rate-limit";
 import { ListingBrowser } from "@/components/listing-browser";
@@ -26,6 +27,8 @@ export default function SearchPage({ searchParams }: PageProps<"/search">) {
 
 async function Results({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const search = parseListingSearch(await searchParams);
+  // Rate limiting needs the real request time, so this part never runs ahead of time.
+  await connection();
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
   const limit = await checkRateLimit("search", ip);
   if (!limit.success) {

@@ -32,7 +32,12 @@ export async function saveListing(
     }
     const data = parsed.data;
     const category = await db.category.findUnique({ where: { id: data.categoryId }, select: { id: true } });
-    if (!category) return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: { categoryId: "Choose a category" } };
+    if (!category)
+      return {
+        ok: false,
+        error: "Please fix the highlighted fields.",
+        fieldErrors: { categoryId: "Choose a category" },
+      };
 
     const fields = {
       title: data.title,
@@ -80,7 +85,10 @@ export async function saveListing(
 const statusSchema = z.enum(["ACTIVE", "PAUSED", "DRAFT"]);
 
 /** Publish, pause or unpublish. Publishing needs at least one photo and something in stock. */
-export async function setListingStatus(listingId: string, status: "ACTIVE" | "PAUSED" | "DRAFT"): Promise<ActionResult> {
+export async function setListingStatus(
+  listingId: string,
+  status: "ACTIVE" | "PAUSED" | "DRAFT",
+): Promise<ActionResult> {
   try {
     const user = await requireUser();
     const listing = await loadListingForUpdate(user, idSchema.parse(listingId));
@@ -130,7 +138,13 @@ export async function deleteListing(listingId: string): Promise<ActionResult> {
     const id = idSchema.parse(listingId);
     const listing = await db.listing.findUnique({
       where: { id },
-      select: { id: true, sellerId: true, status: true, images: { select: { storageKey: true } }, _count: { select: { orderItems: true } } },
+      select: {
+        id: true,
+        sellerId: true,
+        status: true,
+        images: { select: { storageKey: true } },
+        _count: { select: { orderItems: true } },
+      },
     });
     if (!listing) throw new ForbiddenError("That listing wasn't found.");
     assertCan(user, "delete", "listing", listing);
@@ -141,7 +155,9 @@ export async function deleteListing(listingId: string): Promise<ActionResult> {
     } else {
       await db.listing.delete({ where: { id } });
       await getStorage()
-        ?.deleteObjects(listing.images.flatMap((img) => ["thumb", "card", "full"].map((s) => `${img.storageKey}/${s}.webp`)))
+        ?.deleteObjects(
+          listing.images.flatMap((img) => ["thumb", "card", "full"].map((s) => `${img.storageKey}/${s}.webp`)),
+        )
         .catch((error) => console.error("[listings] failed to delete photos", error));
     }
     await audit({ action: "listing.delete", actorId: user.id, targetType: "listing", targetId: id });

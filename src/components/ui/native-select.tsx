@@ -2,11 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /** A styled native <select>: best on phones, works without JavaScript and submits with forms. */
-export function NativeSelect({
-  className,
-  invalid,
-  ...props
-}: React.ComponentProps<"select"> & { invalid?: boolean }) {
+export function NativeSelect({ className, invalid, ...props }: React.ComponentProps<"select"> & { invalid?: boolean }) {
   return (
     <select
       aria-invalid={invalid || undefined}

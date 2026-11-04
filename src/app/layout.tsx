@@ -39,13 +39,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AuthProvider>
           <ThemeProvider>
             <SavedItemsProvider>
-            <SiteHeader />
-            <CategoryNav />
-            <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-              {children}
-            </main>
-            <SiteFooter />
-            <Toaster />
+              <SiteHeader />
+              <CategoryNav />
+              <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+                {children}
+              </main>
+              <SiteFooter />
+              <Toaster />
             </SavedItemsProvider>
           </ThemeProvider>
         </AuthProvider>

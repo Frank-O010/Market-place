@@ -184,8 +184,18 @@ export async function getPublicSeller(slug: string) {
   });
   if (!seller || seller.user.status !== "ACTIVE") return null;
   cacheTag(`seller:${seller.id}`);
-  const { user: _user, ...rest } = seller;
-  return rest;
+  return {
+    id: seller.id,
+    slug: seller.slug,
+    displayName: seller.displayName,
+    bio: seller.bio,
+    location: seller.location,
+    verificationTier: seller.verificationTier,
+    ratingAverage: seller.ratingAverage,
+    ratingCount: seller.ratingCount,
+    badges: seller.badges,
+    createdAt: seller.createdAt,
+  };
 }
 
 export async function getSellerListings(sellerId: string, page: number, perPage = 24) {

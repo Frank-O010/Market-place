@@ -30,11 +30,13 @@ async function Onboarding() {
       <h1 className="text-3xl font-bold">{editing ? "Shop details" : "Set up your shop"}</h1>
       {!editing && (
         <p className="text-muted max-w-xl">
-          It takes a minute. You can change these later. You&apos;ll add your M-Pesa payout number before your first sale.
+          It takes a minute. You can change these later. You&apos;ll add your M-Pesa payout number before your first
+          sale.
         </p>
       )}
       <SellerProfileForm
         submitLabel={editing ? "Save changes" : "Create my shop"}
+        autoSlug={!editing}
         initial={{
           displayName: profile?.displayName ?? user.name,
           slug: profile?.onboardedAt ? profile.slug : slugify(user.name).slice(0, 40),

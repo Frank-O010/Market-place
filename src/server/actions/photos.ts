@@ -108,7 +108,8 @@ export async function finishPhotoUpload(
         where: { listingId: listing.id, status: { not: "REJECTED" } },
         select: { position: true },
       });
-      if (existing.length >= MAX_PHOTOS_PER_LISTING) throw new ForbiddenError(`You can add up to ${MAX_PHOTOS_PER_LISTING} photos.`);
+      if (existing.length >= MAX_PHOTOS_PER_LISTING)
+        throw new ForbiddenError(`You can add up to ${MAX_PHOTOS_PER_LISTING} photos.`);
       const details = await tx.listing.findUniqueOrThrow({ where: { id: listing.id }, select: { title: true } });
       return tx.listingImage.create({
         data: {
@@ -170,7 +171,9 @@ export async function movePhoto(imageId: string, direction: "earlier" | "later")
     const to = direction === "earlier" ? from - 1 : from + 1;
     if (from < 0 || to < 0 || to >= photos.length) return { ok: true };
     [photos[from], photos[to]] = [photos[to]!, photos[from]!];
-    await db.$transaction(photos.map((p, position) => db.listingImage.update({ where: { id: p.id }, data: { position } })));
+    await db.$transaction(
+      photos.map((p, position) => db.listingImage.update({ where: { id: p.id }, data: { position } })),
+    );
     listingChanged(listing);
     return { ok: true };
   } catch (error) {
@@ -178,7 +181,11 @@ export async function movePhoto(imageId: string, direction: "earlier" | "later")
   }
 }
 
-const altSchema = z.string().trim().min(3, "Describe the photo in a few words").max(150, "Keep it under 150 characters");
+const altSchema = z
+  .string()
+  .trim()
+  .min(3, "Describe the photo in a few words")
+  .max(150, "Keep it under 150 characters");
 
 export async function updatePhotoAlt(imageId: string, altText: string): Promise<ActionResult> {
   try {

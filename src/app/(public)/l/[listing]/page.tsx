@@ -41,7 +41,9 @@ export async function generateMetadata({ params }: PageProps<"/l/[listing]">): P
       title: listing.title,
       description,
       url: listingPath(listing),
-      images: cover ? [{ url: absoluteImage(cover.storageKey), width: cover.width, height: cover.height, alt: cover.altText }] : undefined,
+      images: cover
+        ? [{ url: absoluteImage(cover.storageKey), width: cover.width, height: cover.height, alt: cover.altText }]
+        : undefined,
     },
   };
 }
@@ -58,7 +60,9 @@ async function Listing({ params }: { params: Promise<{ listing: string }> }) {
   const listing = await load(params);
   // The proxy answers unknown or unpublished listings with a real 404 first; this is a fallback.
   if (!listing) notFound();
-  const sold = listing.status === "SOLD" || (listing.variants.length ? listing.variants.every((v) => v.stock <= 0) : listing.stock <= 0);
+  const sold =
+    listing.status === "SOLD" ||
+    (listing.variants.length ? listing.variants.every((v) => v.stock <= 0) : listing.stock <= 0);
   const prices = listing.variants.map((v) => v.priceOverrideMinor ?? listing.priceMinor);
   const fromPrice = prices.length ? Math.min(listing.priceMinor, ...prices) : listing.priceMinor;
   const attributes = Object.entries((listing.attributes ?? {}) as Record<string, unknown>).filter(
@@ -114,7 +118,9 @@ async function Listing({ params }: { params: Promise<{ listing: string }> }) {
                 M-Pesa checkout is coming soon. Save this item and we&apos;ll keep it in your list.
               </p>
             )}
-            {listing.status === "ACTIVE" && <SaveButton listingId={listing.id} title={listing.title} variant="inline" />}
+            {listing.status === "ACTIVE" && (
+              <SaveButton listingId={listing.id} title={listing.title} variant="inline" />
+            )}
           </div>
           <p className="text-muted flex items-start gap-2 text-sm">
             <ShieldCheck className="text-brand mt-0.5 size-5 shrink-0" aria-hidden />
@@ -194,7 +200,12 @@ async function Similar({ categoryId, excludeId }: { categoryId: string; excludeI
 }
 
 function ProductJsonLd({ listing, sold }: { listing: PublicListing; sold: boolean }) {
-  const conditionSchema = listing.condition === "NEW" ? "NewCondition" : listing.condition === "FOR_PARTS" ? "DamagedCondition" : "UsedCondition";
+  const conditionSchema =
+    listing.condition === "NEW"
+      ? "NewCondition"
+      : listing.condition === "FOR_PARTS"
+        ? "DamagedCondition"
+        : "UsedCondition";
   return (
     <JsonLd
       data={{
@@ -205,9 +216,10 @@ function ProductJsonLd({ listing, sold }: { listing: PublicListing; sold: boolea
         sku: listing.id,
         category: listing.category.name,
         image: listing.images.map((img) => absoluteImage(img.storageKey)),
-        brand: typeof (listing.attributes as Record<string, unknown>)?.brand === "string"
-          ? { "@type": "Brand", name: (listing.attributes as Record<string, string>).brand }
-          : undefined,
+        brand:
+          typeof (listing.attributes as Record<string, unknown>)?.brand === "string"
+            ? { "@type": "Brand", name: (listing.attributes as Record<string, string>).brand }
+            : undefined,
         offers: {
           "@type": "Offer",
           url: absoluteUrl(listingPath(listing)),

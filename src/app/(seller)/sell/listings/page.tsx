@@ -25,7 +25,6 @@ const statuses = {
 } as const;
 type StatusFilter = keyof typeof statuses;
 
-
 export default function MyListingsPage({ searchParams }: PageProps<"/sell/listings">) {
   return (
     <div className="flex flex-col gap-4">

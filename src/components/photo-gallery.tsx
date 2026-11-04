@@ -50,7 +50,12 @@ export function PhotoGallery({ photos, fallbackLabel }: { photos: Photo[]; fallb
                 )}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element -- thumbnail size is pre-generated */}
-                <img src={imageUrl(photo.storageKey, "thumb")} alt="" loading="lazy" className="size-full object-cover" />
+                <img
+                  src={imageUrl(photo.storageKey, "thumb")}
+                  alt=""
+                  loading="lazy"
+                  className="size-full object-cover"
+                />
               </button>
             </li>
           ))}

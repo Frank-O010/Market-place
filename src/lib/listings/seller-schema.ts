@@ -3,8 +3,27 @@ import { nairobiAreas } from "@/config/locations";
 
 /** Shop addresses that would clash with site pages or mislead buyers. */
 export const RESERVED_SHOP_SLUGS = new Set([
-  "admin", "api", "account", "sell", "seller", "sellers", "search", "help", "legal", "support",
-  "soko", "official", "staff", "moderator", "dev", "new", "edit", "settings", "c", "l", "s",
+  "admin",
+  "api",
+  "account",
+  "sell",
+  "seller",
+  "sellers",
+  "search",
+  "help",
+  "legal",
+  "support",
+  "soko",
+  "official",
+  "staff",
+  "moderator",
+  "dev",
+  "new",
+  "edit",
+  "settings",
+  "c",
+  "l",
+  "s",
 ]);
 
 export const sellerProfileSchema = z.object({

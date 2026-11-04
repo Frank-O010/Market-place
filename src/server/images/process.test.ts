@@ -7,7 +7,9 @@ const photo = (width: number, height: number, options: { exif?: boolean; orienta
   if (options.exif || options.orientation) {
     image = image.withMetadata({
       orientation: options.orientation,
-      exif: options.exif ? { IFD0: { Make: "TestCam" }, IFD3: { GPSLatitudeRef: "S", GPSLatitude: "1/1 17/1 0/1" } } : undefined,
+      exif: options.exif
+        ? { IFD0: { Make: "TestCam" }, IFD3: { GPSLatitudeRef: "S", GPSLatitude: "1/1 17/1 0/1" } }
+        : undefined,
     });
   }
   return image.toBuffer();
@@ -30,7 +32,9 @@ describe("sniffImage", () => {
 
   it("rejects other real file types such as PDF and GIF", async () => {
     await expect(sniffImage(Buffer.from("%PDF-1.7\n%âãÏÓ\n1 0 obj\n"))).rejects.toBeInstanceOf(ImageRejectedError);
-    const gif = await sharp({ create: { width: 10, height: 10, channels: 3, background: "#fff" } }).gif().toBuffer();
+    const gif = await sharp({ create: { width: 10, height: 10, channels: 3, background: "#fff" } })
+      .gif()
+      .toBuffer();
     await expect(sniffImage(gif)).rejects.toBeInstanceOf(ImageRejectedError);
   });
 });
@@ -39,7 +43,11 @@ describe("processImage", () => {
   it("makes three WebP sizes and never enlarges", async () => {
     const result = await processImage(await photo(800, 600));
     expect(result).toMatchObject({ width: 800, height: 600 });
-    for (const [size, max] of [["thumb", 200], ["card", 480], ["full", 800]] as const) {
+    for (const [size, max] of [
+      ["thumb", 200],
+      ["card", 480],
+      ["full", 800],
+    ] as const) {
       const meta = await sharp(result.files[size]).metadata();
       expect(meta.format).toBe("webp");
       expect(meta.width).toBe(max);

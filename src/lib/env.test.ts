@@ -45,8 +45,8 @@ describe("parseServerEnv", () => {
   });
 
   it("requires both Meilisearch variables or neither", () => {
-    expect(() =>
-      parseServerEnv({ ...base, AUTH_PROVIDER: "dev", MEILISEARCH_HOST: "https://ms.example" }),
-    ).toThrow(/MEILISEARCH_ADMIN_KEY/);
+    expect(() => parseServerEnv({ ...base, AUTH_PROVIDER: "dev", MEILISEARCH_HOST: "https://ms.example" })).toThrow(
+      /MEILISEARCH_ADMIN_KEY/,
+    );
   });
 });

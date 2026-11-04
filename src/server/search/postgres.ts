@@ -40,7 +40,9 @@ export async function postgresSearch(search: ListingSearch): Promise<{ ids: stri
       // Every word must loosely match somewhere in the title, category or description start.
       const haystack = Prisma.sql`lower(l."title" || ' ' || c."name" || ' ' || left(l."description", 300))`;
       for (const word of words) {
-        where.push(Prisma.sql`(${haystack} LIKE ${`%${word.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`} OR word_similarity(${word}, ${haystack}) >= 0.5)`);
+        where.push(
+          Prisma.sql`(${haystack} LIKE ${`%${word.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`} OR word_similarity(${word}, ${haystack}) >= 0.5)`,
+        );
       }
       score = Prisma.sql`word_similarity(${search.q.toLowerCase()}, lower(l."title"))`;
     } else {
