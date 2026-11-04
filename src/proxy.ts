@@ -13,11 +13,10 @@ import { legalPages } from "@/config/site";
 const useClerk = process.env.AUTH_PROVIDER !== "dev";
 const devToolsEnabled = process.env.NODE_ENV !== "production" || process.env.ALLOW_DEV_AUTH === "true";
 
-const clerk = clerkMiddleware();
-
 const legalSlugs = new Set<string>(legalPages.map((page) => page.slug));
 
-export default function proxy(request: NextRequest, event: NextFetchEvent) {
+/** Early responses that don't depend on who is signed in. Returns undefined to carry on. */
+function guard(request: NextRequest): NextResponse | undefined {
   const { pathname } = request.nextUrl;
   if (pathname.startsWith("/dev") && !devToolsEnabled) {
     return new NextResponse("Not found", { status: 404 });
@@ -28,8 +27,16 @@ export default function proxy(request: NextRequest, event: NextFetchEvent) {
   if (legal && !legalSlugs.has(legal[1]!)) {
     return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
   }
+  return undefined;
+}
+
+// The guard runs inside Clerk's middleware so that pages rendered for a rewritten
+// response (like the 404 page, whose header reads the session) still have Clerk's auth context.
+const clerk = clerkMiddleware((_auth, request) => guard(request));
+
+export default function proxy(request: NextRequest, event: NextFetchEvent) {
   if (useClerk) return clerk(request, event);
-  return NextResponse.next();
+  return guard(request) ?? NextResponse.next();
 }
 
 export const config = {

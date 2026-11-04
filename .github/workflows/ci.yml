@@ -70,7 +70,16 @@ jobs:
       - name: Seed demo data
         run: pnpm db:seed
 
-      - name: Build
+      # Production uses Clerk, which renders different components than the dev sign-in used by
+      # the e2e tests, so prerender the app in Clerk mode too. Placeholder keys are enough to build.
+      - name: Build with Clerk enabled
+        run: pnpm build
+        env:
+          AUTH_PROVIDER: clerk
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZmFrZS10ZXN0LmNsZXJrLmFjY291bnRzLmRldiQ=
+          CLERK_SECRET_KEY: sk_test_placeholder_for_ci_build_only
+
+      - name: Build for e2e tests (dev sign-in)
         run: pnpm build
 
       - name: Install Playwright browser
