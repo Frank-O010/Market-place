@@ -93,9 +93,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+      # No dependency install in this job, so no pnpm cache (an empty cache path fails the job).
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: pnpm
       - name: Audit production dependencies
         run: pnpm audit --prod --audit-level high
