@@ -612,6 +612,7 @@ async function main() {
         ratingAverage: s.rating[0],
         ratingCount: s.rating[1],
         badges: s.badges,
+        onboardedAt: new Date(),
       },
     });
     sellerIds.set(s.userKey, profile.id);

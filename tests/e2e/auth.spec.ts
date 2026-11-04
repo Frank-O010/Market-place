@@ -66,7 +66,7 @@ test.describe("roles", () => {
   test("role switching updates what a user can access", async ({ page }) => {
     await signUp(page, "Role Switcher");
     await page.goto("/sell");
-    await expect(page.getByText("Become a seller")).toBeVisible();
+    await expect(page.getByText("Open your shop")).toBeVisible();
 
     await page.goto("/dev/roles");
     await page.getByRole("button", { name: /seller role/ }).click();

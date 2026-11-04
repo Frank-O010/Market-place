@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { requireUserOrRedirect } from "@/server/auth/current-user";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +36,11 @@ async function AccountDetails() {
             </Badge>
           ))}
         </p>
-        <p className="text-muted pt-2 text-sm">Orders, saved items and notification settings arrive in later phases.</p>
+        <p className="pt-2 text-sm">
+          <Link href="/account/saved" className="text-brand font-medium underline-offset-4 hover:underline">
+            Saved items
+          </Link>
+        </p>
       </CardContent>
     </Card>
   );

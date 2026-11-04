@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Store } from "lucide-react";
+import { Plus, Store } from "lucide-react";
+import { sellerPath } from "@/lib/urls";
 import { getCurrentUser } from "@/server/auth/current-user";
 import { db } from "@/server/db";
 import { Button } from "@/components/ui/button";
@@ -38,13 +39,17 @@ async function SellerHome() {
       />
     );
   }
-  // Seller onboarding (profile, phone verification, payout details) is built in Phase 2.
   if (!user.roles.includes("SELLER") || !user.sellerProfileId) {
     return (
       <EmptyState
         icon={<Store />}
-        title="Become a seller"
-        description="Seller onboarding opens in the next release. You'll set up your shop profile, verify your phone and add M-Pesa payout details."
+        title="Open your shop"
+        description="Set up your shop name and location, then list your first item. It's free to list."
+        action={
+          <Button asChild>
+            <Link href="/sell/onboarding">Set up my shop</Link>
+          </Button>
+        }
       />
     );
   }
@@ -58,21 +63,46 @@ async function SellerHome() {
   const count = (status: string) => counts.find((c) => c.status === status)?._count ?? 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3" data-testid="seller-stats">
-      {[
-        ["Active listings", count("ACTIVE")],
-        ["Drafts", count("DRAFT")],
-        ["Sold", count("SOLD")],
-      ].map(([label, value]) => (
-        <Card key={label}>
-          <CardHeader>
-            <CardTitle className="text-muted text-sm font-medium">{label}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{value}</p>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-2">
+        <Button asChild>
+          <Link href="/sell/listings/new">
+            <Plus aria-hidden /> List an item
+          </Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href="/sell/listings">My listings</Link>
+        </Button>
+        <Button asChild variant="ghost">
+          <Link href="/sell/onboarding">Shop details</Link>
+        </Button>
+        {user.sellerSlug && (
+          <Button asChild variant="ghost">
+            <Link href={sellerPath(user.sellerSlug)}>View my shop</Link>
+          </Button>
+        )}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-4" data-testid="seller-stats">
+        {(
+          [
+            ["Active listings", "ACTIVE"],
+            ["Drafts", "DRAFT"],
+            ["Paused", "PAUSED"],
+            ["Sold", "SOLD"],
+          ] as const
+        ).map(([label, status]) => (
+          <Link key={status} href={`/sell/listings?status=${status}`} className="rounded-lg">
+            <Card className="hover:bg-surface-muted h-full">
+              <CardHeader>
+                <CardTitle className="text-muted text-sm font-medium">{label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold">{count(status)}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

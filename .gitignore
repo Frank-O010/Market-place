@@ -52,3 +52,6 @@ next-env.d.ts
 
 # sentry
 .env.sentry-build-plugin
+
+# local photo storage (development and tests)
+/.data/

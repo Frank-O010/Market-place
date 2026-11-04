@@ -23,10 +23,12 @@ const sampleListing = {
   priceMinor: 3_450_000,
   location: "Westlands",
   condition: "LIKE_NEW" as const,
+  status: "ACTIVE" as const,
   category: { name: "Phones" },
   images: [],
   seller: {
     displayName: "Wanjiku Electronics",
+    slug: "wanjiku-electronics",
     ratingAverage: 470,
     ratingCount: 38,
     verificationTier: "ID_VERIFIED" as const,
