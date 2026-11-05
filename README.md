@@ -71,6 +71,8 @@ Phase 2 setup on Vercel: add `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACC
 
 Phase 4 setup: create a second R2 bucket with public access OFF and set `R2_PRIVATE_BUCKET`, set `ENCRYPTION_KEY` (`openssl rand -base64 32`, keep a copy somewhere safe), and add `AT_USERNAME`/`AT_API_KEY` for SMS. Give at least one person the moderator role; the queues are at `/admin/moderation`.
 
+Phase 5 setup: in Clerk, turn on multi-factor (authenticator app and SMS) under User and authentication, Multi-factor. Every moderator and admin must turn on two-step verification at Account, Security before the admin area opens for them. Optionally add `NEXT_PUBLIC_POSTHOG_KEY` (a PostHog EU project) for funnel analytics, and create the Sentry alert rules in `docs/monitoring.md`. The admin area is at `/admin`.
+
 Phase 3 setup: add `PAYSTACK_SECRET_KEY`, `RESEND_API_KEY` and `EMAIL_FROM`, then in Paystack set the webhook URL to `https://<domain>/api/webhooks/paystack`, enable M-Pesa and transfers, and turn off OTP for API transfers. Locally, checkout uses a mock gateway: after placing an order, follow the "sandbox" link on the order page to approve or fail the payment, and read sent emails at `/dev/outbox`.
 
 ## Architecture
@@ -111,7 +113,7 @@ src/server/private-files/        ID documents and dispute photos (private bucket
 src/server/actions/    server actions
 src/lib/               env validation, money (integer KES), security headers, utils
 tests/e2e/             Playwright tests
-docs/                  decisions, security checklist
+docs/                  decisions, security checklist, monitoring and alert rules
 ```
 
 ### How permissions work

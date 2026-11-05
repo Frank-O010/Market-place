@@ -81,6 +81,11 @@ const serverSchema = z
     AT_API_KEY: optionalString,
     AT_SENDER_ID: optionalString,
 
+    // PostHog product analytics (project API key, starts with phc_). Events are only sent for
+    // people who accepted analytics cookies, through our own /api/analytics route (no PostHog script).
+    NEXT_PUBLIC_POSTHOG_KEY: optionalString,
+    POSTHOG_HOST: z.url().default("https://eu.i.posthog.com"),
+
     // Vercel sends this as a bearer token to cron routes (search index repair).
     CRON_SECRET: optionalString,
 

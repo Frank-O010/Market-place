@@ -164,20 +164,22 @@ enum NotificationChannel {
 // ---------------------------------------------------------------------------
 
 model User {
-  id                String     @id @default(cuid())
-  authProviderId    String     @unique // Clerk user id (or dev-auth id locally)
-  email             String?    @unique
-  phone             String?    @unique
-  name              String
-  roles             Role[]     @default([BUYER])
-  status            UserStatus @default(ACTIVE)
-  phoneVerified     Boolean    @default(false)
-  emailVerified     Boolean    @default(false)
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
-  deletedAt         DateTime?
+  id                 String     @id @default(cuid())
+  authProviderId     String     @unique // Clerk user id (or dev-auth id locally)
+  email              String?    @unique
+  phone              String?    @unique
+  name               String
+  roles              Role[]     @default([BUYER])
+  status             UserStatus @default(ACTIVE)
+  phoneVerified      Boolean    @default(false)
+  emailVerified      Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  deletedAt          DateTime?
   // Which optional notifications the user wants, e.g. {"messageEmail": false}. Missing keys = default on.
-  notificationPrefs Json       @default("{}")
+  notificationPrefs  Json       @default("{}")
+  // When the user accepted analytics cookies (PostHog). Null = no analytics for this user.
+  analyticsConsentAt DateTime?
 
   sellerProfile           SellerProfile?
   savedItems              SavedItem[]

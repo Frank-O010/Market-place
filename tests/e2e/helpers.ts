@@ -6,9 +6,12 @@ import { test as base, expect, type Page } from "@playwright/test";
  * don't leak between tests. (The rate limits themselves are covered in rate-limit.spec.ts.)
  */
 export const test = base.extend({
-  page: async ({ page }, provide) => {
+  page: async ({ page, baseURL }, provide) => {
     const ip = `10.${rand()}.${rand()}.${rand()}`;
     await page.setExtraHTTPHeaders({ "x-forwarded-for": ip });
+    // The cookie banner is fixed to the bottom of the screen; answer it up front so it doesn't
+    // cover buttons. (admin.spec.ts tests the banner itself with a fresh context.)
+    await page.context().addCookies([{ name: "mp_consent", value: "essential", url: baseURL! }]);
     await provide(page);
   },
 });

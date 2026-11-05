@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import { env } from "@/lib/env";
 import { markUserDeleted, upsertUserFromProvider } from "@/server/auth/sync";
-import { audit } from "@/server/audit";
+import { securityEvent } from "@/server/security-events";
 
 /**
  * Clerk user lifecycle webhook. The signature is verified with Svix before anything is trusted.
@@ -17,7 +17,10 @@ export async function POST(request: NextRequest) {
   try {
     event = await verifyWebhook(request, { signingSecret: env().CLERK_WEBHOOK_SIGNING_SECRET });
   } catch {
-    await audit({ action: "webhook.clerk.signature_failed", ip: request.headers.get("x-forwarded-for") });
+    await securityEvent("webhook_signature_failed", {
+      action: "webhook.clerk.signature_failed",
+      ip: request.headers.get("x-forwarded-for"),
+    });
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 

@@ -1,3 +1,4 @@
+import { TrackEvent } from "@/components/analytics";
 import Link from "next/link";
 import { SearchX, SlidersHorizontal } from "lucide-react";
 import { nairobiAreas } from "@/config/locations";
@@ -18,12 +19,17 @@ const selectClass = "border-border-strong bg-surface h-11 w-full rounded-md bord
  */
 export async function ListingBrowser({ search, basePath }: { search: ListingSearch; basePath: string }) {
   const { ids, total } = await searchListingIds(search);
+  const tracking =
+    basePath === "/search" && search.q && search.page === 1 ? (
+      <TrackEvent event="search_performed" properties={{ query: search.q.slice(0, 100), results: total }} />
+    ) : null;
   const listings = await getListingCards(ids);
   const totalPages = Math.min(50, Math.ceil(total / PER_PAGE));
   const filtered = hasFilters(search);
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      {tracking}
       <details className="border-border bg-surface rounded-lg border lg:w-64 lg:shrink-0" open={filtered || undefined}>
         <summary className="flex h-11 cursor-pointer items-center gap-2 px-4 font-medium">
           <SlidersHorizontal className="size-4" aria-hidden /> Filters{filtered ? " (on)" : ""}

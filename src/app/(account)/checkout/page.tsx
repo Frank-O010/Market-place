@@ -7,6 +7,7 @@ import { requireUserOrRedirect } from "@/server/auth/current-user";
 import { db } from "@/server/db";
 import { getPaymentGateway } from "@/server/payments";
 import { getSetting } from "@/server/settings";
+import { TrackEvent } from "@/components/analytics";
 import { CheckoutForm } from "@/components/orders/checkout-form";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -77,6 +78,7 @@ async function Checkout({ searchParams }: { searchParams: Promise<Record<string,
           Change cart
         </Link>
       </section>
+      <TrackEvent event="checkout_started" properties={{ items: items.length }} />
       <CheckoutForm
         sellerId={sellerId}
         sellerArea={sellerProfile.location}

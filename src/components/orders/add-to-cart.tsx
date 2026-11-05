@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
+import { track } from "@/components/analytics";
 import { formatKes } from "@/lib/money";
 import { addToCart } from "@/server/actions/cart";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function AddToCart({
       }
       setAdded(true);
       toast.success("Added to your cart.");
+      track("add_to_cart", { listing_id: listingId, quantity });
       router.refresh();
     });
   }

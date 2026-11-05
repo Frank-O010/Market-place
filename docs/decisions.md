@@ -86,6 +86,26 @@ Choices made where the build spec was open or ambiguous, newest last. Each entry
 
 **4.9 Deferred to later phases.** Turnstile (bot check) on the first message goes with the other Turnstile work in Phase 6. 2FA for moderators and admins is enforced in Phase 5. The full admin panel (users, roles, settings, audit log search) is Phase 5; Phase 4 adds the moderation queues at `/admin/moderation` and dispute pages at `/admin/disputes/…`.
 
+## Phase 5
+
+**5.1 Two-step verification for staff, enforced by the app.** Admin pages and every moderation or admin action check Clerk's `twoFactorEnabled` for the signed-in user. Staff without it are sent to `/admin/two-step`, which links to Account, Security (Clerk's own screen for authenticator apps and SMS codes). The check lives in our code rather than a Clerk dashboard rule so it can't be switched off by accident. Local dev sign-in counts as two-step.
+
+**5.2 Sellers need two-step only to _change_ a payout number after being paid.** Adding the first M-Pesa number stays easy. Once a seller has received a payout, changing where the money goes needs two-step verification, because that's what a stolen account is used for. Every add or change is logged and alerted.
+
+**5.3 Who sees what in the admin area.** Moderators: overview, moderation queues, users (view and suspend non-staff), listings and orders. Admins also get settings, roles, seller tiers, categories, payouts and the audit log. Non-staff get a plain 404 for every admin page, and the admin navigation is only drawn after the access check. An admin can't remove their own admin role, so the platform can't be left without one by mistake.
+
+**5.4 Metrics come from our own database, not PostHog.** GMV (paid orders less refunds), platform revenue (commission), orders paid and placed, checkout conversion, average order, new users and active sellers, for the last 7, 30 or 90 days, counted by when the order was placed. Plain numbers, no charts, so they're exact and need no third party. PostHog is for the funnel (search, view, add to cart, checkout, paid).
+
+**5.5 Analytics only with consent, and first-party.** A cookie banner offers "Essential only" or "Accept analytics". Nothing is tracked until someone accepts. Events go from the browser to our own `/api/analytics` route, which forwards them to PostHog's EU host; no PostHog script runs on the page, so the CSP didn't change. Signed-in users who consent are identified by their internal id (never email or phone). People can change their choice at Account, Privacy.
+
+**5.6 Data export and account deletion.** Account, Privacy has a JSON download of everything we hold about the person (account, orders, listings, messages, reviews, reports, disputes; limited per day) and a "Delete my account" button. Deletion is blocked while an order is still open or a payout is on its way, and for admins. It removes listings, scrubs the shop, empties the cart and saved items, erases name, email and phone straight away, and deletes the Clerk account. Orders, payments and payouts are kept, without personal details, as financial records. A hard delete after the retention period is Phase 6.
+
+**5.7 Settings admins can change without a deploy.** Commission, delivery fee, days before automatic release, prohibited keywords, and two switches: "Checkout is on" (a kill switch for payment outages) and "Review every new listing". Commission changes apply to new orders only. Every change is written to the audit log with the old and new value.
+
+**5.8 Alerts through Sentry.** Rate-limit hits, bad webhook signatures, failed payments, payment amount mismatches and admin actions are sent to Sentry as messages tagged `security_event`. `docs/monitoring.md` lists the alert rules to create in Sentry. Failed sign-ins happen inside Clerk, which has its own brute-force protection and dashboard; the app can't see them.
+
+**5.9 Deferred.** Charts and CSV exports for metrics; bulk actions on users and listings; an admin "impersonate user" tool (left out on purpose: risky and not needed at launch).
+
 ## Needs a human decision or legal review before launch
 
 - **Holding funds (escrow).** Holding buyers' money until delivery may need a licence or a regulated partner in Kenya (CBK payment service rules). As built in Phase 3, buyer payments settle into the platform's Paystack balance and are paid out to sellers by transfer after delivery, which is effectively holding funds. Before going live, get legal advice on whether this needs CBK authorisation, or switch to Paystack split payments/subaccounts (the gateway interface allows this).
@@ -93,3 +113,4 @@ Choices made where the build spec was open or ambiguous, newest last. Each entry
 - **Brand, niche and commission.** These are placeholders until decided.
 - **ID documents.** How long to keep approved ID photos, and whether ID checks need a registered data processor, under the Data Protection Act 2019. The current build keeps approved photos and deletes rejected ones immediately.
 - **Prohibited keywords and categories.** The starting list is a guess; it should match the final prohibited items policy.
+- **Analytics and cookies.** PostHog (EU hosting) as a processor, and the wording of the cookie banner and cookie policy, should be checked against the Data Protection Act 2019. How long to keep deleted users' financial records (the build keeps them; Kenyan tax law generally expects 5 years for business records).

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import * as Sentry from "@sentry/nextjs";
-import { audit } from "@/server/audit";
+import { securityEvent } from "@/server/security-events";
 import { getPaymentGateway } from "@/server/payments";
 import { verifyWebhookSignature } from "@/server/payments/signature";
 import type { PaystackEvent } from "@/server/payments/types";
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const raw = await request.text();
   if (raw.length > 1_000_000) return new NextResponse("Payload too large", { status: 413 });
   if (!verifyWebhookSignature(gateway.webhookSecret, raw, request.headers.get("x-paystack-signature"))) {
-    await audit({
+    await securityEvent("webhook_signature_failed", {
       action: "webhook.paystack.bad_signature",
       ip: request.headers.get("x-forwarded-for"),
     });

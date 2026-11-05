@@ -2,8 +2,9 @@
 
 import { z } from "zod";
 import { normaliseKenyanPhone } from "@/lib/orders/pricing";
-import { audit } from "@/server/audit";
 import { requireUser } from "@/server/auth/current-user";
+import { hasTwoFactor } from "@/server/auth/identity";
+import { securityEvent } from "@/server/security-events";
 import { db } from "@/server/db";
 import { retryPendingPayouts } from "@/server/orders/payouts";
 import { assertCan, ForbiddenError } from "@/server/policy/can";
@@ -34,6 +35,17 @@ export async function savePayoutDetails(_prev: ActionResult | null, form: FormDa
     if (!user.sellerProfileId) throw new ForbiddenError("Set up your shop first.");
     assertCan(user, "update", "sellerProfile", { id: user.sellerProfileId, userId: user.id });
     await enforceRateLimit("payoutSettings", user.id);
+    // Changing where money goes is the main prize of a stolen account, so once a seller has been
+    // paid, changing the number needs two-step verification.
+    const existing = await db.sellerProfile.findUniqueOrThrow({
+      where: { id: user.sellerProfileId },
+      select: { payoutReference: true, _count: { select: { payouts: { where: { status: "PAID" } } } } },
+    });
+    if (existing.payoutReference && existing._count.payouts > 0 && !(await hasTwoFactor()))
+      return {
+        ok: false,
+        error: "To change your payout number, first turn on two-step verification in Account, Security.",
+      };
     const parsed = schema.safeParse({ name: form.get("name"), phone: form.get("phone") });
     if (!parsed.success) {
       const fieldErrors: Record<string, string> = {};
@@ -54,8 +66,8 @@ export async function savePayoutDetails(_prev: ActionResult | null, form: FormDa
       where: { id: user.sellerProfileId },
       data: { payoutReference: recipientCode, payoutLabel: `M-Pesa ending ${parsed.data.phone.slice(-3)}` },
     });
-    await audit({
-      action: "seller.payout_details.update",
+    await securityEvent("admin_action", {
+      action: existing.payoutReference ? "seller.payout_details.change" : "seller.payout_details.add",
       actorId: user.id,
       targetType: "sellerProfile",
       targetId: user.sellerProfileId,

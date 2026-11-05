@@ -1,13 +1,13 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { formatKes } from "@/lib/money";
 import { fraudFlagLabels, type FraudFlag } from "@/lib/trust/fraud";
 import { disputeReasons } from "@/lib/trust/schemas";
 import { listingPath } from "@/lib/urls";
-import { requireUserOrRedirect } from "@/server/auth/current-user";
+import { requireStaffPage } from "@/server/auth/staff";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { decryptField } from "@/server/crypto";
 import { db } from "@/server/db";
 import { can } from "@/server/policy/can";
@@ -52,8 +52,7 @@ export default function ModerationPage({ searchParams }: PageProps<"/admin/moder
 }
 
 async function Moderation({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const user = await requireUserOrRedirect("/admin/moderation");
-  if (!can(user, "moderate", "platform", {})) notFound();
+  const user = await requireStaffPage("/admin/moderation");
   const requested = (await searchParams).tab;
   const tab: Tab = tabs.some((t) => t.key === requested) ? (requested as Tab) : "listings";
   const counts = await Promise.all([
@@ -66,6 +65,7 @@ async function Moderation({ searchParams }: { searchParams: Promise<Record<strin
 
   return (
     <>
+      <AdminNav current="/admin/moderation" isAdmin={can(user, "manage_settings", "platform", {})} />
       <nav aria-label="Moderation queues" className="-mx-4 overflow-x-auto px-4">
         <ul className="flex gap-2">
           {tabs.map((t, i) => (
