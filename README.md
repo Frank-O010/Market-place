@@ -65,9 +65,11 @@ The design system gallery is at **/dev/components**.
 
 All of them are documented in [`.env.example`](.env.example) and validated at startup by `src/lib/env.ts`. A missing or invalid value stops the app with a clear message. The important rule is that a deployed site must use `AUTH_PROVIDER=clerk`. The app refuses to start with dev sign-in on Vercel, and in any production build unless `ALLOW_DEV_AUTH=true` is set (only the e2e tests do that).
 
-Accounts you'll need before deploying: Clerk, a managed Postgres (Neon or Supabase), Upstash Redis, Sentry, Vercel, Cloudflare R2 (photos) and Meilisearch Cloud (search). Without R2, photo uploads are switched off on a deployed site; without Meilisearch, search falls back to Postgres. Phase 3 adds Paystack (payments and payouts) and Resend (email).
+Accounts you'll need before deploying: Clerk, a managed Postgres (Neon or Supabase), Upstash Redis, Sentry, Vercel, Cloudflare R2 (photos) and Meilisearch Cloud (search). Without R2, photo uploads are switched off on a deployed site; without Meilisearch, search falls back to Postgres. Phase 3 adds Paystack (payments and payouts) and Resend (email); Phase 4 adds a private R2 bucket, an encryption key and Africa's Talking (SMS).
 
 Phase 2 setup on Vercel: add `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `NEXT_PUBLIC_IMAGE_ORIGIN`, `MEILISEARCH_HOST`, `MEILISEARCH_ADMIN_KEY` and `CRON_SECRET`, redeploy, then run `pnpm search:reindex` once against production (or wait for the nightly cron).
+
+Phase 4 setup: create a second R2 bucket with public access OFF and set `R2_PRIVATE_BUCKET`, set `ENCRYPTION_KEY` (`openssl rand -base64 32`, keep a copy somewhere safe), and add `AT_USERNAME`/`AT_API_KEY` for SMS. Give at least one person the moderator role; the queues are at `/admin/moderation`.
 
 Phase 3 setup: add `PAYSTACK_SECRET_KEY`, `RESEND_API_KEY` and `EMAIL_FROM`, then in Paystack set the webhook URL to `https://<domain>/api/webhooks/paystack`, enable M-Pesa and transfers, and turn off OTP for API transfers. Locally, checkout uses a mock gateway: after placing an order, follow the "sandbox" link on the order page to approve or fail the payment, and read sent emails at `/dev/outbox`.
 
@@ -104,6 +106,8 @@ src/server/images/     photo checks and re-encoding
 src/server/payments/   Paystack and mock gateways, webhook handling
 src/server/orders/     order state changes, refunds, payouts, scheduled maintenance
 src/server/email/      email templates and the outbox
+src/server/notifications/, sms/  in-app, email and SMS notifications
+src/server/private-files/        ID documents and dispute photos (private bucket)
 src/server/actions/    server actions
 src/lib/               env validation, money (integer KES), security headers, utils
 tests/e2e/             Playwright tests

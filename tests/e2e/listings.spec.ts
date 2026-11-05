@@ -11,7 +11,7 @@ async function photo(colour = "#0F766E") {
 }
 
 test.describe("selling", () => {
-  test("a new seller sets up a shop, lists an item with a photo, publishes it, and a guest finds it with a typo", async ({
+  test("a new seller sets up a shop, lists an item with a photo, a moderator approves it, and a guest finds it with a typo", async ({
     page,
     browser,
   }, testInfo) => {
@@ -58,8 +58,27 @@ test.describe("selling", () => {
     await expect(page).toHaveTitle(/Edit listing/);
     await expectAccessible(page);
 
+    // A new seller's first listing waits for a moderator.
     await page.getByRole("button", { name: "Publish" }).click();
-    await expect(page.getByText("Active", { exact: true })).toBeVisible();
+    await expect(page.getByText("In review", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Waiting for a moderator/)).toBeVisible();
+
+    const modContext = await browser.newContext(testInfo.project.use);
+    const moderator = await modContext.newPage();
+    await signInAs(moderator, seeded.moderator, "/admin/moderation");
+    const card = moderator
+      .getByTestId("listing-queue")
+      .filter({ visible: true })
+      .getByRole("listitem")
+      .filter({ hasText: title });
+    await expect(card).toBeVisible();
+    await expectAccessible(moderator);
+    await card.getByRole("button", { name: "Approve" }).click();
+    await expect(card).toHaveCount(0);
+    await modContext.close();
+
+    await page.reload();
+    await expect(page.getByText("Active", { exact: true }).filter({ visible: true })).toBeVisible();
     await page.getByRole("link", { name: "View live listing" }).click();
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
     await expect(page.getByText("Mahogany")).toBeVisible();

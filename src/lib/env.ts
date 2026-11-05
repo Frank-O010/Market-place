@@ -65,6 +65,22 @@ const serverSchema = z
     RESEND_API_KEY: optionalString,
     EMAIL_FROM: z.string().min(3).default("Soko <orders@soko.example>"),
 
+    // Private R2 bucket (no public access) for ID documents and dispute photos. Uses the R2_*
+    // credentials above. Without it, these uploads are switched off on deployed sites.
+    R2_PRIVATE_BUCKET: optionalString,
+    // 32 random bytes, base64 (`openssl rand -base64 32`). Encrypts sensitive fields such as the
+    // ID document reference. Required for ID verification on a deployed site.
+    ENCRYPTION_KEY: z
+      .string()
+      .refine((v) => Buffer.from(v, "base64").length === 32, "ENCRYPTION_KEY must be 32 bytes, base64-encoded")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+
+    // Africa's Talking for SMS (order updates). Without it, SMS are recorded but not sent.
+    AT_USERNAME: optionalString,
+    AT_API_KEY: optionalString,
+    AT_SENDER_ID: optionalString,
+
     // Vercel sends this as a bearer token to cron routes (search index repair).
     CRON_SECRET: optionalString,
 
@@ -112,6 +128,13 @@ const serverSchema = z
         code: "custom",
         path: ["MEILISEARCH_ADMIN_KEY"],
         message: "Set both MEILISEARCH_HOST and MEILISEARCH_ADMIN_KEY, or neither.",
+      });
+    }
+    if (Boolean(env.AT_USERNAME) !== Boolean(env.AT_API_KEY)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AT_API_KEY"],
+        message: "Set both AT_USERNAME and AT_API_KEY, or neither.",
       });
     }
     if (Boolean(env.UPSTASH_REDIS_REST_URL) !== Boolean(env.UPSTASH_REDIS_REST_TOKEN)) {

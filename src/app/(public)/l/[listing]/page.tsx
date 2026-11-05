@@ -9,6 +9,9 @@ import { imageUrl } from "@/lib/images";
 import { conditionLabels } from "@/lib/listings/schema";
 import { absoluteUrl, categoryPath, listingPath, parseListingParam, sellerPath } from "@/lib/urls";
 import { getPublicListing, getSimilarListings, type PublicListing } from "@/server/queries/catalog";
+import { getCurrentUser } from "@/server/auth/current-user";
+import { MessageButton } from "@/components/trust/message-seller-button";
+import { ReportButton } from "@/components/trust/report-button";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { AddToCart } from "@/components/orders/add-to-cart";
 import { JsonLd } from "@/components/json-ld";
@@ -126,6 +129,9 @@ async function Listing({ params }: { params: Promise<{ listing: string }> }) {
               <SaveButton listingId={listing.id} title={listing.title} variant="inline" />
             )}
           </div>
+          <Suspense fallback={<Skeleton className="h-12 w-40" />}>
+            <ContactActions listingId={listing.id} sellerId={listing.seller.id} />
+          </Suspense>
           <p className="text-muted flex items-start gap-2 text-sm">
             <ShieldCheck className="text-brand mt-0.5 size-5 shrink-0" aria-hidden />
             When you buy, your payment is held safely until you confirm the item arrived.
@@ -162,6 +168,27 @@ async function Listing({ params }: { params: Promise<{ listing: string }> }) {
       </Suspense>
 
       <ProductJsonLd listing={listing} sold={sold} />
+    </div>
+  );
+}
+
+/** Message the seller and report the listing. Reads the session, so it streams in separately. */
+async function ContactActions({ listingId, sellerId }: { listingId: string; sellerId: string }) {
+  const user = await getCurrentUser();
+  if (user?.sellerProfileId === sellerId) {
+    return (
+      <p className="text-muted text-sm">
+        This is your listing.{" "}
+        <Link href={`/sell/listings/${listingId}/edit`} className="text-brand underline">
+          Edit it
+        </Link>
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <MessageButton listingId={listingId} signedIn={Boolean(user)} />
+      <ReportButton targetType="LISTING" targetId={listingId} signedIn={Boolean(user)} />
     </div>
   );
 }

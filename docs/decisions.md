@@ -66,8 +66,30 @@ Choices made where the build spec was open or ambiguous, newest last. Each entry
 
 **3.10 Mock gateway for development and CI.** Without `PAYSTACK_SECRET_KEY`, local development and CI use a mock gateway with a sandbox page (`/dev/payments/…`) that sends a correctly signed webhook, so the full flow is tested end to end. On a deployed site without the key, checkout shows "Checkout isn't switched on yet" rather than using the mock.
 
+## Phase 4
+
+**4.1 Messaging is polling, not websockets.** Conversations are per buyer, seller and listing. An open conversation checks for new messages every 5 seconds while the tab is visible. That is cheap on Vercel and fine at launch volume; a realtime service (Pusher, Ably or Supabase Realtime) can replace it later without changing the data model.
+
+**4.2 Contact details: warn, mark, never strip.** Before the buyer has paid for an order from that seller, a message containing a phone number (including spaced-out or spelled-out digits), an email address or "WhatsApp" shows the sender a warning that the deal won't be protected. They can edit it or send anyway. Sent anyway, the message is marked and the other person sees a safety note. We never silently change what someone wrote.
+
+**4.3 Notifications: in-app always, email and SMS by preference.** Every event creates an in-app notification (the bell). New messages also email the recipient (at most once per conversation per 15 minutes; can be turned off). SMS through Africa's Talking goes out for the two moments that need action: a seller's new paid order and a buyer's order on the way (can be turned off). Receipts and dispute emails always go. Without Africa's Talking keys, SMS are recorded but not sent.
+
+**4.4 Reviews.** One review per completed order, from the buyer only, rating 1 to 5 with optional text. The seller can reply once, publicly. The seller's rating is recalculated from visible reviews; moderators can hide a review, which removes it from the rating. Buyers are shown by first name with "verified purchase". The seed's made-up rating numbers were replaced with real demo orders and reviews.
+
+**4.5 What goes to the moderation queue.** A new seller's first listing (unless they're ID-verified), any listing that mentions a word on the prohibited-keywords list (`prohibited_keywords` setting: weapons, drugs, counterfeits, wildlife products, alcohol and so on), and any live listing reported by 3 different people (it is taken down until checked). A keyword match doesn't block the seller, because too many innocent listings contain those words ("glue gun"); a moderator decides. Moderators can approve, send back with a reason, or remove.
+
+**4.6 Disputes.** The buyer can report a problem while the money is held (paid, on the way, or delivered), with up to 3 photos. That stops automatic release. The seller can reply once or refund in full; the buyer can withdraw ("problem sorted", which releases the money). A moderator decides the rest: full refund, partial refund, or release. **A partial refund comes out of the seller's share and the platform keeps its full commission**; the maximum partial refund is the seller's share. Disputes can also be opened before shipping ("never sent").
+
+**4.7 ID verification.** Sellers upload a photo of their national ID or passport. It is re-encoded (dropping EXIF and GPS) and stored in a private R2 bucket with no public access. The database keeps only its key, encrypted with AES-256-GCM (`ENCRYPTION_KEY`). Only moderators can view it, through an authorised route, never a public URL. Moderators approve as "Verified" (ID) or "Verified business", or reject with a reason, which deletes the photo at once. Approved photos are kept; **how long to keep them is a legal question** (see below). "Phone verified" is automatic once the seller's phone is confirmed through Clerk. Verified sellers skip the first-listing check.
+
+**4.8 Fraud flags hold the payout, not the order.** When an order is paid we check three signals: a new account (under 7 days) ordering KES 20,000 or more; 3 or more failed payments on other unpaid orders in the last day; and the payment phone number used by 3 or more accounts in 30 days. A flagged order goes ahead for the buyer, but the seller's payout waits until a moderator clears it (or refunds the order if it hasn't been sent). Device fingerprinting was left out: it needs a third-party script and a privacy review.
+
+**4.9 Deferred to later phases.** Turnstile (bot check) on the first message goes with the other Turnstile work in Phase 6. 2FA for moderators and admins is enforced in Phase 5. The full admin panel (users, roles, settings, audit log search) is Phase 5; Phase 4 adds the moderation queues at `/admin/moderation` and dispute pages at `/admin/disputes/…`.
+
 ## Needs a human decision or legal review before launch
 
 - **Holding funds (escrow).** Holding buyers' money until delivery may need a licence or a regulated partner in Kenya (CBK payment service rules). As built in Phase 3, buyer payments settle into the platform's Paystack balance and are paid out to sellers by transfer after delivery, which is effectively holding funds. Before going live, get legal advice on whether this needs CBK authorisation, or switch to Paystack split payments/subaccounts (the gateway interface allows this).
 - **Legal pages are placeholders.** These are the terms of service, seller agreement, prohibited items list, privacy policy, cookie policy, and refund and dispute policy. Each page says so on screen. All of them need to be written or reviewed by a lawyer, including Data Protection Act 2019 obligations such as ODPC registration.
 - **Brand, niche and commission.** These are placeholders until decided.
+- **ID documents.** How long to keep approved ID photos, and whether ID checks need a registered data processor, under the Data Protection Act 2019. The current build keeps approved photos and deletes rejected ones immediately.
+- **Prohibited keywords and categories.** The starting list is a guess; it should match the final prohibited items policy.

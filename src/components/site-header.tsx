@@ -8,6 +8,7 @@ import { SearchBar } from "@/components/search-bar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { CartLink } from "@/components/cart-link";
+import { NotificationBell } from "@/components/notification-bell";
 
 export function SiteHeader() {
   return (
@@ -30,6 +31,9 @@ export function SiteHeader() {
             </Link>
           </Button>
           <ThemeToggle />
+          <Suspense fallback={null}>
+            <NotificationBell />
+          </Suspense>
           <Suspense fallback={<Skeleton className="size-11" />}>
             <CartLink />
           </Suspense>

@@ -42,6 +42,7 @@ async function EditListing({
           sellerId: true,
           slug: true,
           status: true,
+          moderationNote: true,
           title: true,
           categoryId: true,
           condition: true,
@@ -83,6 +84,11 @@ async function EditListing({
           </Link>
         )}
       </div>
+      {listing.moderationNote && listing.status !== "ACTIVE" && (
+        <p role="alert" className="border-warning bg-warning-subtle rounded-md border p-3">
+          <strong>Note from our moderators:</strong> {listing.moderationNote}
+        </p>
+      )}
       <PhotoManager listingId={listing.id} photos={listing.images} />
       <ListingStatusControls listingId={listing.id} status={listing.status} photoCount={listing.images.length} />
       <section aria-labelledby="details-heading" className="flex flex-col gap-4">
