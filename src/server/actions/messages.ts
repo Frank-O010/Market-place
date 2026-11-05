@@ -11,6 +11,7 @@ import { notify } from "@/server/notifications";
 import { assertCan, ForbiddenError } from "@/server/policy/can";
 import { hasPaidOrderBetween } from "@/server/queries/messages";
 import { enforceRateLimit } from "@/server/rate-limit";
+import { turnstileEnabled, verifyTurnstile } from "@/server/turnstile";
 import { expectedFailure, type ActionResult } from "./result";
 
 /** "Message seller" on a listing: opens (or reuses) the conversation about that listing. */
@@ -69,7 +70,8 @@ export async function startOrderConversation(orderId: string): Promise<ActionRes
   redirect(`/messages/${conversationId}`);
 }
 
-export type SendMessageResult = ActionResult | { ok: false; contactWarning: string; error: string };
+export type SendMessageResult =
+  ActionResult | { ok: false; contactWarning: string; error: string } | { ok: false; challenge: true; error: string };
 
 /**
  * Sends a message. If it contains contact details and the buyer hasn't paid for an order from
@@ -80,6 +82,7 @@ export async function sendMessage(
   conversationId: string,
   body: string,
   confirmContact = false,
+  turnstileToken?: string,
 ): Promise<SendMessageResult> {
   try {
     const user = await requireUser();
@@ -108,6 +111,13 @@ export async function sendMessage(
         error: "Your message contains contact details.",
         contactWarning: `Your message includes ${describeContactDetails(kinds)}. If you agree a deal outside Soko, your payment isn't protected and we can't help if something goes wrong. Pay through Soko to stay safe.`,
       };
+    }
+
+    // Bot check on an account's very first message, where spam accounts start.
+    if (turnstileEnabled() && (await db.message.count({ where: { senderId: user.id }, take: 1 })) === 0) {
+      if (!turnstileToken) return { ok: false, challenge: true, error: "Please confirm you're a person first." };
+      if (!(await verifyTurnstile(turnstileToken)))
+        return { ok: false, challenge: true, error: "That check didn't work. Please try it again." };
     }
 
     const now = new Date();

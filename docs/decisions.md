@@ -106,10 +106,32 @@ Choices made where the build spec was open or ambiguous, newest last. Each entry
 
 **5.9 Deferred.** Charts and CSV exports for metrics; bulk actions on users and listings; an admin "impersonate user" tool (left out on purpose: risky and not needed at launch).
 
+## Phase 6
+
+**6.1 Bot checks: Clerk for sign-up and sign-in, Turnstile for a first message.** Clerk already runs Cloudflare Turnstile on its sign-up and sign-in forms (turn on Bot protection in the Clerk dashboard), so we don't add a second widget there. Our own Turnstile check guards the one place a spam bot would aim next: someone's very first message. It only appears when `TURNSTILE_SECRET_KEY` and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` are both set, uses the "interaction only" mode (most people never see a puzzle), and fails closed if Cloudflare can't be reached. Later messages don't need it; they stay rate limited.
+
+**6.2 Data retention.** A daily job (`/api/cron/retention`, 03:30) permanently removes what's left of deleted accounts after 30 days (`DELETED_ACCOUNT_RETENTION_DAYS`): message text, review text, dispute details and photos, addresses and phone numbers on orders, notifications, ID photos and payout details. Order, payment and payout rows stay, without personal details, for tax records. It also deletes sent-email copies after 180 days and notifications after a year, and blanks IP addresses in the audit log after a year. Every purge is written to the audit log.
+
+**6.3 No ClamAV virus scan.** Every photo is decoded and re-encoded by sharp before anyone can see it, so nothing hidden in a file survives. A virus scanner would add a server to run and keep updated for little extra protection on images. If non-image uploads (PDFs) are ever added, add a scan then.
+
+**6.4 CSP keeps `'unsafe-inline'` for scripts (reviewed).** The Phase 1 trade-off (#3) still holds: nonces would turn off the prerendered shell on every page, and Next's hash-based option is still experimental. The risk is contained because we render no user HTML (React escapes everything), there is no `eval`, `object-src` is `'none'`, framing is blocked and connect/img/frame origins are allow-listed. Revisit when Next's SRI support is stable.
+
+**6.5 Smaller first load: Sentry loads after the page.** The browser Sentry SDK now loads when the browser is idle instead of in the first bundle (about 65 KB less on every page). Errors before it loads are still caught by the error page, which loads it on demand. `pnpm perf:budget` fails if a key page's JavaScript grows past its budget (home 285 KB, search 280 KB, listing 320 KB, sign-in 275 KB, gzipped). Most of what's left is React/Next (about 110 KB) and Clerk (about 57 KB).
+
+**6.6 Installable app with a careful offline mode.** A web manifest and icons make Soko installable on Android ("Add to home screen"). The service worker only caches Next's versioned static files and an offline page. It never caches pages, prices, stock or API answers, so nobody sees an old price or buys something already sold. Offline, any page shows "You're offline" with a Retry button.
+
+**6.7 Legal pages are full drafts, clearly marked.** Each legal page now has real text written to match how Soko actually works (held payments, 3-day release, commission, retention periods, processors). Each still shows "Draft. This page hasn't been reviewed by a lawyer yet" until `LEGAL_REVIEWED` is set to true in `src/config/legal.ts`. Placeholders in [brackets] (company name, ODPC number, emails, commission) must be filled in.
+
+**6.8 Load test results (local, one instance).** `pnpm load-test` against a local production build reached about 60 to 87 requests a second per page, limited by one CPU. Median responses were about 30 ms; single requests about 15 ms. Under that overload the slowest 2.5% queued for up to 4.6 s, so the budgets (p97.5 under 0.8 to 1.2 s) are meant to be checked against staging on Vercel, where functions scale out. Checkout races were tested separately: four buyers paying for the last item at the same moment, exactly one order succeeds.
+
+**6.9 Backups.** We rely on the database host's point-in-time restore and test it with `scripts/restore-drill.sh` (back up, restore into a scratch database, compare row counts). Today's local drill passed in 1 second. See `docs/backup-restore.md`.
+
+**6.10 Health check.** `/api/health` answers `{ "ok": true }` when the database answers, and 503 otherwise, with no details. Point the uptime monitor at it.
+
 ## Needs a human decision or legal review before launch
 
 - **Holding funds (escrow).** Holding buyers' money until delivery may need a licence or a regulated partner in Kenya (CBK payment service rules). As built in Phase 3, buyer payments settle into the platform's Paystack balance and are paid out to sellers by transfer after delivery, which is effectively holding funds. Before going live, get legal advice on whether this needs CBK authorisation, or switch to Paystack split payments/subaccounts (the gateway interface allows this).
-- **Legal pages are placeholders.** These are the terms of service, seller agreement, prohibited items list, privacy policy, cookie policy, and refund and dispute policy. Each page says so on screen. All of them need to be written or reviewed by a lawyer, including Data Protection Act 2019 obligations such as ODPC registration.
+- **Legal pages are drafts.** The terms of service, seller agreement, prohibited items list, privacy policy, cookie policy, and refund and dispute policy have draft text (Phase 6) with [bracketed] placeholders. Each page says on screen that it hasn't been reviewed. A Kenyan lawyer must review them, including Data Protection Act 2019 obligations such as ODPC registration, before `LEGAL_REVIEWED` is set to true.
 - **Brand, niche and commission.** These are placeholders until decided.
 - **ID documents.** How long to keep approved ID photos, and whether ID checks need a registered data processor, under the Data Protection Act 2019. The current build keeps approved photos and deletes rejected ones immediately.
 - **Prohibited keywords and categories.** The starting list is a guess; it should match the final prohibited items policy.

@@ -29,6 +29,7 @@ Failed sign-ins happen inside Clerk, which has its own brute-force protection; r
 
 ## Other monitoring
 
-- **Uptime:** add a free uptime check (Better Stack, UptimeRobot or Vercel's) on `/` every 5 minutes (a health endpoint is added in Phase 6).
+- **Uptime:** add a free uptime check (Better Stack, UptimeRobot or Vercel's) on `/api/health` every 5 minutes. It returns 200 `{ "ok": true }` when the app can reach the database, and 503 otherwise.
+- **Data retention:** the daily `/api/cron/retention` run writes an audit log entry for each account it purges.
 - **Cron jobs:** Vercel, Project, Cron Jobs shows each run. A failed run also reaches Sentry as an error.
 - **Payouts:** Admin, Payouts, filter "Failed". The overview page shows the count.

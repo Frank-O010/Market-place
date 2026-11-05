@@ -31,7 +31,7 @@ test.describe("guest browsing", () => {
     await expectAccessible(page);
     await page.goto("/legal/privacy");
     await expect(page.getByRole("heading", { name: "Privacy policy" })).toBeVisible();
-    await expect(page.getByRole("note")).toContainText("Placeholder");
+    await expect(page.getByRole("note")).toContainText("Draft");
   });
 
   test("unknown pages return a helpful 404", async ({ page }) => {

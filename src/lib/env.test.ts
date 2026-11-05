@@ -32,6 +32,17 @@ describe("parseServerEnv", () => {
     ).toThrow(/UPSTASH/);
   });
 
+  it("requires both Turnstile keys or neither", () => {
+    const dev = { ...base, AUTH_PROVIDER: "dev" };
+    expect(() => parseServerEnv({ ...dev, TURNSTILE_SECRET_KEY: "secret" })).toThrow(/TURNSTILE/);
+    expect(() => parseServerEnv({ ...dev, NEXT_PUBLIC_TURNSTILE_SITE_KEY: "site" })).toThrow(/TURNSTILE/);
+    expect(parseServerEnv({ ...dev, TURNSTILE_SECRET_KEY: "s", NEXT_PUBLIC_TURNSTILE_SITE_KEY: "k" })).toBeTruthy();
+  });
+
+  it("defaults the deleted-account retention to 30 days", () => {
+    expect(parseServerEnv({ ...base, AUTH_PROVIDER: "dev" }).DELETED_ACCOUNT_RETENTION_DAYS).toBe(30);
+  });
+
   it("fails clearly when DATABASE_URL is missing", () => {
     expect(() => parseServerEnv({ AUTH_PROVIDER: "dev" })).toThrow(/DATABASE_URL/);
   });

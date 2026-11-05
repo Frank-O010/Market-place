@@ -7,6 +7,7 @@ import { sendMessage } from "@/server/actions/messages";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/native-select";
+import { Turnstile } from "@/components/turnstile";
 
 /** Message box. Warns before sending contact details while the deal isn't protected yet. */
 export function Composer({ conversationId }: { conversationId: string }) {
@@ -15,15 +16,22 @@ export function Composer({ conversationId }: { conversationId: string }) {
   const [error, setError] = React.useState<string | null>(null);
   const [warning, setWarning] = React.useState<string | null>(null);
   const [pending, start] = React.useTransition();
+  // A brand-new account's first message needs a bot check (only when Turnstile is configured).
+  const [challenge, setChallenge] = React.useState<{ confirmContact: boolean; key: number } | null>(null);
 
-  function send(confirmContact: boolean) {
+  function send(confirmContact: boolean, token?: string) {
     setError(null);
     start(async () => {
-      const result = await sendMessage(conversationId, body, confirmContact);
+      const result = await sendMessage(conversationId, body, confirmContact, token);
       if (result.ok) {
         setBody("");
         setWarning(null);
+        setChallenge(null);
         router.refresh();
+      } else if ("challenge" in result) {
+        // Tokens are single use: mount a fresh widget for each attempt.
+        setChallenge((c) => ({ confirmContact, key: (c?.key ?? 0) + 1 }));
+        if (token) setError(result.error);
       } else if ("contactWarning" in result) {
         setWarning(result.contactWarning);
       } else {
@@ -56,6 +64,16 @@ export function Composer({ conversationId }: { conversationId: string }) {
               Send anyway
             </Button>
           </div>
+        </div>
+      )}
+      {challenge && (
+        <div className="flex flex-col gap-1 text-sm">
+          <p>One quick check before your first message:</p>
+          <Turnstile
+            key={challenge.key}
+            action="first_message"
+            onToken={(token) => send(challenge.confirmContact, token)}
+          />
         </div>
       )}
       {error && (

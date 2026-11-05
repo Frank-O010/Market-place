@@ -24,7 +24,17 @@ const nextConfig: NextConfig = {
     remotePatterns: imageOrigins.map((origin) => new URL(`${origin}/**`)),
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders({ isDev, siteUrl, imageOrigins }) }];
+    return [
+      { source: "/:path*", headers: securityHeaders({ isDev, siteUrl, imageOrigins }) },
+      // The service worker must always be re-checked so a new deploy takes over promptly.
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+        ],
+      },
+    ];
   },
 };
 
