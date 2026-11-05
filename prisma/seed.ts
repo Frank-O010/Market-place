@@ -523,6 +523,8 @@ async function main() {
   console.log("Clearing demo data…");
   // Order matters because of foreign keys.
   await db.auditLog.deleteMany();
+  await db.emailMessage.deleteMany();
+  await db.orderEvent.deleteMany();
   await db.moderationAction.deleteMany();
   await db.report.deleteMany();
   await db.notification.deleteMany();
@@ -550,6 +552,7 @@ async function main() {
     data: [
       { key: "commission_bps", value: 1000 }, // 10%
       { key: "auto_release_days", value: 3 },
+      { key: "delivery_fee_minor", value: 30_000 }, // KES 300 flat within the launch city
       { key: "launch_city", value: "Nairobi" },
       {
         key: "prohibited_items",
@@ -613,6 +616,9 @@ async function main() {
         ratingCount: s.rating[1],
         badges: s.badges,
         onboardedAt: new Date(),
+        // Demo payout recipients. Only the mock payment gateway accepts these.
+        payoutReference: `RCP_demo_${slugify(s.displayName).slice(0, 20)}`,
+        payoutLabel: "M-Pesa ending 000",
       },
     });
     sellerIds.set(s.userKey, profile.id);

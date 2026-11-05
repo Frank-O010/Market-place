@@ -44,8 +44,30 @@ Choices made where the build spec was open or ambiguous, newest last. Each entry
 
 **2.8 Search result and filtered category pages are `noindex, follow`.** Category, listing and shop pages are indexed and listed in the sitemap. `robots.txt` blocks account, selling, admin, dev and API routes, and blocks everything on non-production Vercel deployments.
 
+## Phase 3
+
+**3.1 Paystack for card and M-Pesa.** One provider handles card payments (hosted checkout), M-Pesa STK push (the `/charge` mobile money API), refunds and seller payouts (transfers to M-Pesa numbers). Going straight to Safaricom Daraja would mean a second integration, our own paybill and settlement work; Paystack Kenya already settles M-Pesa. The gateway sits behind an interface (`src/server/payments`), so Daraja can be added later without touching orders.
+
+**3.2 Webhooks are the source of truth.** An order becomes paid only when a Paystack webhook with a valid HMAC-SHA512 signature arrives, and the charge is then confirmed again with Paystack's verify API before any money state changes. The browser redirect after card payment only shows a "checking your payment" page. Every handler is idempotent and safe out of order: payments are claimed with a conditional update on their unique reference, and order transitions use optimistic locking, so duplicate or concurrent events do nothing. Unknown references, amount or currency mismatches and late payments are written to the audit log (and Sentry for mismatches).
+
+**3.3 One order per seller.** The cart groups items by seller and each group checks out separately. Payment, delivery, cancellation and payouts then each involve exactly one seller.
+
+**3.4 Sign-in is required to check out.** No guest checkout: buyers need an account to track orders, confirm delivery and (in Phase 4) open disputes. Card payments also need an email; M-Pesa-only buyers can pay without one.
+
+**3.5 Stock is reserved when the order is placed.** Stock is decremented atomically at checkout (the update only succeeds if enough is left), so two buyers can't buy the last item. The buyer has 30 minutes to pay; after that the order is cancelled and the stock returned. A payment that lands after cancellation is refunded automatically and the buyer is emailed.
+
+**3.6 Money is released on delivery, not on payment.** Order flow: placed → paid → shipped → delivered → completed. The buyer confirms delivery, or it is confirmed automatically `auto_release_days` (setting, default 3) after shipping. Completion creates the seller's payout of total minus commission. Commission (`commission_bps`, default 10%) applies to items only; the delivery fee (`delivery_fee_minor`, default KES 300) goes to the seller. A seller can cancel before shipping, which refunds the buyer in full.
+
+**3.7 Payouts go to M-Pesa through Paystack transfers.** The seller enters their M-Pesa number once; it is registered with Paystack as a transfer recipient and only the recipient code and a masked label (for example "M-Pesa ••• 678") are stored. Payouts wait if the seller hasn't added details yet and are retried by the daily job. **Transfers must be enabled on the Paystack account** (and OTP for transfers turned off for API use), otherwise payouts stay pending.
+
+**3.8 Daily jobs, plus clean-up at checkout.** Vercel's Hobby plan only allows daily cron jobs, so `/api/cron/orders` runs once a day (expire unpaid orders, auto-release, retry payouts). Expiry also runs at the start of every checkout, so stock held by abandoned orders is freed when someone needs it. On a Pro plan the cron can run every 10 minutes by changing `vercel.json`.
+
+**3.9 Emails through Resend with an outbox.** Every email (order placed, paid, shipped, completed, cancelled, refunded, payout sent) is stored in `EmailMessage` first and then sent. A failed send never breaks the order flow. Without `RESEND_API_KEY`, emails are only stored and can be read at `/dev/outbox` locally.
+
+**3.10 Mock gateway for development and CI.** Without `PAYSTACK_SECRET_KEY`, local development and CI use a mock gateway with a sandbox page (`/dev/payments/…`) that sends a correctly signed webhook, so the full flow is tested end to end. On a deployed site without the key, checkout shows "Checkout isn't switched on yet" rather than using the mock.
+
 ## Needs a human decision or legal review before launch
 
-- **Holding funds (escrow).** Holding buyers' money until delivery may need a licence or a regulated partner in Kenya (CBK payment service rules). The plan is to use the payment provider's split or delayed-settlement features rather than hold money in our own account, but this needs legal review before launch.
+- **Holding funds (escrow).** Holding buyers' money until delivery may need a licence or a regulated partner in Kenya (CBK payment service rules). As built in Phase 3, buyer payments settle into the platform's Paystack balance and are paid out to sellers by transfer after delivery, which is effectively holding funds. Before going live, get legal advice on whether this needs CBK authorisation, or switch to Paystack split payments/subaccounts (the gateway interface allows this).
 - **Legal pages are placeholders.** These are the terms of service, seller agreement, prohibited items list, privacy policy, cookie policy, and refund and dispute policy. Each page says so on screen. All of them need to be written or reviewed by a lawyer, including Data Protection Act 2019 obligations such as ODPC registration.
 - **Brand, niche and commission.** These are placeholders until decided.

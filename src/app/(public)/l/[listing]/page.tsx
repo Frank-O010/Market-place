@@ -10,6 +10,7 @@ import { conditionLabels } from "@/lib/listings/schema";
 import { absoluteUrl, categoryPath, listingPath, parseListingParam, sellerPath } from "@/lib/urls";
 import { getPublicListing, getSimilarListings, type PublicListing } from "@/server/queries/catalog";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { AddToCart } from "@/components/orders/add-to-cart";
 import { JsonLd } from "@/components/json-ld";
 import { ListingGrid } from "@/components/listing-card";
 import { PhotoGallery } from "@/components/photo-gallery";
@@ -113,10 +114,13 @@ async function Listing({ params }: { params: Promise<{ listing: string }> }) {
             </div>
           )}
           <div className="flex flex-wrap gap-2">
-            {!sold && (
-              <p className="border-brand bg-brand-subtle w-full rounded-md border p-3 text-sm">
-                M-Pesa checkout is coming soon. Save this item and we&apos;ll keep it in your list.
-              </p>
+            {listing.status === "ACTIVE" && (
+              <AddToCart
+                listingId={listing.id}
+                priceMinor={listing.priceMinor}
+                stock={listing.stock}
+                variants={listing.variants}
+              />
             )}
             {listing.status === "ACTIVE" && (
               <SaveButton listingId={listing.id} title={listing.title} variant="inline" />

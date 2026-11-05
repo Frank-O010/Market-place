@@ -71,6 +71,17 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum DeliveryMethod {
+  PICKUP // buyer collects from the seller's area
+  DELIVERY // seller delivers within the launch city for a flat fee
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
 enum PaymentProvider {
   PAYSTACK
   MPESA_DARAJA
@@ -185,6 +196,8 @@ model SellerProfile {
   // Reference to payout details held by the payment provider (e.g. Paystack subaccount code).
   // Raw payout details are never stored here in plain text.
   payoutReference  String?
+  // Safe to show, e.g. "M-Pesa ending 678". Never the full number.
+  payoutLabel      String?
   ratingAverage    Int              @default(0) // rating x 100, e.g. 465 = 4.65
   ratingCount      Int              @default(0)
   badges           String[]         @default([])
@@ -319,27 +332,36 @@ model CartItem {
 // ---------------------------------------------------------------------------
 
 model Order {
-  id               String        @id @default(cuid())
-  number           String        @unique // human-friendly, e.g. "MP-24A9F3"
+  id               String         @id @default(cuid())
+  number           String         @unique // human-friendly, e.g. "MP-24A9F3"
   buyerId          String?
-  buyer            User?         @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: SetNull)
+  buyer            User?          @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: SetNull)
   guestEmail       String? // guest checkout
   guestPhone       String?
   sellerId         String
-  seller           SellerProfile @relation("SellerOrders", fields: [sellerId], references: [id])
-  status           OrderStatus   @default(PENDING_PAYMENT)
+  seller           SellerProfile  @relation("SellerOrders", fields: [sellerId], references: [id])
+  status           OrderStatus    @default(PENDING_PAYMENT)
   subtotalMinor    Int
-  deliveryFeeMinor Int           @default(0)
+  deliveryFeeMinor Int            @default(0)
   platformFeeMinor Int // commission, deducted from seller payout
   totalMinor       Int // what the buyer pays
-  currency         String        @default("KES")
+  currency         String         @default("KES")
   deliveryAddress  Json?
+  deliveryMethod   DeliveryMethod @default(PICKUP)
+  buyerPhone       String? // M-Pesa / contact number in 2547XXXXXXXX form
+  paymentDueAt     DateTime? // unpaid orders are cancelled and stock released after this
+  shippedAt        DateTime?
+  trackingNote     String?
   deliveredAt      DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  cancelReason     String?
   autoReleaseAt    DateTime? // funds release automatically after this if no dispute
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   items         OrderItem[]
+  events        OrderEvent[]
   payments      Payment[]
   payout        Payout?        @relation(fields: [payoutId], references: [id])
   payoutId      String?
@@ -389,6 +411,7 @@ model Payout {
   feeMinor          Int           @default(0)
   status            PayoutStatus  @default(PENDING)
   providerReference String?       @unique
+  failureReason     String?
   createdAt         DateTime      @default(now())
   paidAt            DateTime?
 
@@ -527,6 +550,38 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 // Platform settings (editable in the admin panel)
 // ---------------------------------------------------------------------------
+
+/// Timeline of an order, shown to the buyer and seller. Append-only.
+model OrderEvent {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  actorId   String? // null for system events (payment webhooks, auto-release)
+  note      String?
+  createdAt DateTime    @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+/// Every email we send (receipts, order updates). Doubles as the dev outbox.
+model EmailMessage {
+  id         String      @id @default(cuid())
+  to         String
+  subject    String
+  template   String
+  html       String
+  text       String
+  status     EmailStatus @default(QUEUED)
+  providerId String?
+  error      String?
+  orderId    String?
+  createdAt  DateTime    @default(now())
+  sentAt     DateTime?
+
+  @@index([to, createdAt])
+  @@index([orderId])
+}
 
 model PlatformSetting {
   key       String   @id // e.g. "commission_bps", "auto_release_days", "prohibited_items"

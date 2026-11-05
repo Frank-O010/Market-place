@@ -1,5 +1,6 @@
 import "server-only";
 import { env } from "@/lib/env";
+import { localFallbacksAllowed } from "@/server/local-mode";
 import { createLocalStorage } from "./local";
 import { createR2Storage } from "./r2";
 import type { ObjectStorage } from "./types";
@@ -23,17 +24,10 @@ export function getStorage(): ObjectStorage | null {
       bucket: e.R2_BUCKET,
       publicOrigin: e.NEXT_PUBLIC_IMAGE_ORIGIN,
     });
-  } else if (localStorageAllowed()) {
+  } else if (localFallbacksAllowed()) {
     cached = createLocalStorage(e.UPLOAD_SIGNING_SECRET);
   } else {
     cached = null;
   }
   return cached;
-}
-
-/** The local disk is fine on a developer machine or in CI, never on Vercel (its disk is temporary). */
-export function localStorageAllowed() {
-  const e = env();
-  if (e.VERCEL_ENV) return false;
-  return e.NODE_ENV !== "production" || e.ALLOW_DEV_AUTH === "true";
 }
