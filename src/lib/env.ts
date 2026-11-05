@@ -86,6 +86,13 @@ const serverSchema = z
     NEXT_PUBLIC_POSTHOG_KEY: optionalString,
     POSTHOG_HOST: z.url().default("https://eu.i.posthog.com"),
 
+    // Cloudflare Turnstile (bot check) on a new account's first message. Both or neither.
+    // Sign-up and sign-in bot protection is Clerk's own (turned on in the Clerk dashboard).
+    TURNSTILE_SECRET_KEY: optionalString,
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: optionalString,
+    // Days after an account is deleted before what's left of it is purged (default 30).
+    DELETED_ACCOUNT_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(30),
+
     // Vercel sends this as a bearer token to cron routes (search index repair).
     CRON_SECRET: optionalString,
 
@@ -140,6 +147,13 @@ const serverSchema = z
         code: "custom",
         path: ["AT_API_KEY"],
         message: "Set both AT_USERNAME and AT_API_KEY, or neither.",
+      });
+    }
+    if (Boolean(env.TURNSTILE_SECRET_KEY) !== Boolean(env.NEXT_PUBLIC_TURNSTILE_SITE_KEY)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["TURNSTILE_SECRET_KEY"],
+        message: "Set both TURNSTILE_SECRET_KEY and NEXT_PUBLIC_TURNSTILE_SITE_KEY, or neither.",
       });
     }
     if (Boolean(env.UPSTASH_REDIS_REST_URL) !== Boolean(env.UPSTASH_REDIS_REST_TOKEN)) {

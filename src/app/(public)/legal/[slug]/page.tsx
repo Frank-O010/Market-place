@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { LEGAL_REVIEWED, LEGAL_UPDATED, legalContent } from "@/config/legal";
 import { legalPages, site } from "@/config/site";
 
 export function generateStaticParams() {
@@ -13,7 +14,7 @@ export async function generateMetadata({ params }: PageProps<"/legal/[slug]">): 
   return { title: page?.title ?? "Not found" };
 }
 
-/** Placeholder legal text. Must be replaced and reviewed by a lawyer before launch (see docs/decisions.md). */
+/** Draft legal text from src/config/legal.ts. Must be reviewed by a Kenyan lawyer before launch. */
 export default function LegalPage({ params }: PageProps<"/legal/[slug]">) {
   // params are read inside a boundary so the route stays prerenderable when it is revalidated.
   return (
@@ -27,17 +28,24 @@ async function LegalContent({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const page = legalPages.find((p) => p.slug === slug);
   if (!page) notFound();
+  const sections = legalContent[page.slug] ?? [];
   return (
     <article className="mx-auto flex max-w-2xl flex-col gap-4">
       <h1 className="text-3xl font-bold">{page.title}</h1>
-      <p role="note" className="border-warning bg-warning-subtle rounded-md border p-4 text-sm">
-        Placeholder text. This page has not been written or reviewed by a lawyer yet and must be replaced before{" "}
-        {site.name} launches.
-      </p>
-      <p className="text-muted">
-        This page will explain the {page.title.toLowerCase()} for {site.name}, in line with Kenyan law including the
-        Data Protection Act, 2019.
-      </p>
+      <p className="text-muted text-sm">Last updated {LEGAL_UPDATED}</p>
+      {!LEGAL_REVIEWED && (
+        <p role="note" className="border-warning bg-warning-subtle rounded-md border p-4 text-sm">
+          Draft. This page hasn&apos;t been reviewed by a lawyer yet and will be finalised before {site.name} launches.
+        </p>
+      )}
+      {sections.map((section) => (
+        <section key={section.heading} className="flex flex-col gap-2">
+          <h2 className="text-xl font-semibold">{section.heading}</h2>
+          {section.paragraphs.map((text) => (
+            <p key={text.slice(0, 40)}>{text}</p>
+          ))}
+        </section>
+      ))}
     </article>
   );
 }

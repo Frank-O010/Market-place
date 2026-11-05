@@ -5,6 +5,7 @@ import { site } from "@/config/site";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toast";
 import { ConsentBanner } from "@/components/privacy-forms";
+import { ServiceWorkerRegistration } from "@/components/pwa";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { CategoryNav } from "@/components/category-nav";
@@ -16,6 +17,8 @@ export const metadata: Metadata = {
   description: site.description,
   applicationName: site.name,
   openGraph: { type: "website", siteName: site.name, locale: "en_KE" },
+  appleWebApp: { capable: true, title: site.name, statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -48,6 +51,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <SiteFooter />
               <Toaster />
               <ConsentBanner />
+              <ServiceWorkerRegistration />
             </SavedItemsProvider>
           </ThemeProvider>
         </AuthProvider>

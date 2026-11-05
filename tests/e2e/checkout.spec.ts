@@ -195,6 +195,7 @@ test("the payment webhook rejects unsigned or tampered requests", async ({ reque
 
 test("cron endpoints need the secret", async ({ request }) => {
   expect((await request.get("/api/cron/orders")).status()).toBe(401);
+  expect((await request.get("/api/cron/retention")).status()).toBe(401);
   expect((await request.get("/api/cron/search-reindex", { headers: { authorization: "Bearer wrong" } })).status()).toBe(
     401,
   );

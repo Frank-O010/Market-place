@@ -1,21 +1,8 @@
-import * as Sentry from "@sentry/nextjs";
+import { loadSentry } from "@/lib/sentry-client";
 
-const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
-
-if (dsn) {
-  Sentry.init({
-    dsn,
-    tracesSampleRate: 0.1,
-    // Keep personal data out of Sentry: no user info, cookies, bodies, query strings or DB parameters.
-    dataCollection: {
-      userInfo: false,
-      cookies: false,
-      httpHeaders: { request: false, response: false },
-      httpBodies: [],
-      urlQueryParams: false,
-      databaseQueryData: false,
-    },
-  });
+// Start loading error reporting once the browser is idle (see src/lib/sentry-client.ts).
+if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_SENTRY_DSN) {
+  const start = () => void loadSentry();
+  if ("requestIdleCallback" in window) window.requestIdleCallback(start, { timeout: 5000 });
+  else setTimeout(start, 3000);
 }
-
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

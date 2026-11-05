@@ -60,6 +60,9 @@ The design system gallery is at **/dev/components**.
 | `pnpm db:deploy`                                     | Apply migrations (CI and deploys)                                                     |
 | `pnpm db:seed` / `pnpm db:reset`                     | Reseed demo data / drop, migrate and reseed                                           |
 | `pnpm search:reindex`                                | Rebuild the Meilisearch index from Postgres (needs `MEILISEARCH_*`)                   |
+| `pnpm perf:budget`                                   | Check each key page's JavaScript against its size budget (after `pnpm build`)         |
+| `pnpm load-test`                                     | Load test key pages: `pnpm load-test https://staging...` (never production)           |
+| `scripts/restore-drill.sh`                           | Back up, restore into a scratch database and compare row counts (see backup guide)    |
 
 ## Environment variables
 
@@ -74,6 +77,8 @@ Phase 4 setup: create a second R2 bucket with public access OFF and set `R2_PRIV
 Phase 5 setup: in Clerk, turn on multi-factor (authenticator app and SMS) under User and authentication, Multi-factor. Every moderator and admin must turn on two-step verification at Account, Security before the admin area opens for them. Optionally add `NEXT_PUBLIC_POSTHOG_KEY` (a PostHog EU project) for funnel analytics, and create the Sentry alert rules in `docs/monitoring.md`. The admin area is at `/admin`.
 
 Phase 3 setup: add `PAYSTACK_SECRET_KEY`, `RESEND_API_KEY` and `EMAIL_FROM`, then in Paystack set the webhook URL to `https://<domain>/api/webhooks/paystack`, enable M-Pesa and transfers, and turn off OTP for API transfers. Locally, checkout uses a mock gateway: after placing an order, follow the "sandbox" link on the order page to approve or fail the payment, and read sent emails at `/dev/outbox`.
+
+Phase 6 setup: follow the launch checklist in [`docs/launch.md`](docs/launch.md). In short: turn on Bot protection in Clerk, optionally add `TURNSTILE_SECRET_KEY` and `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (a Cloudflare Turnstile widget) for first messages, point an uptime check at `/api/health`, have a lawyer review the legal drafts, and run the backup drill in [`docs/backup-restore.md`](docs/backup-restore.md).
 
 ## Architecture
 
