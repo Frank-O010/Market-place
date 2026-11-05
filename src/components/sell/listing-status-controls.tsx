@@ -36,7 +36,11 @@ export function ListingStatusControls({
         setError(result.error);
         return;
       }
-      toast.success(message);
+      toast.success(
+        result.data?.pendingReview
+          ? "Thanks! A moderator checks this listing before it goes live, usually within a few hours."
+          : message,
+      );
       router.refresh();
     });
   }
@@ -48,8 +52,14 @@ export function ListingStatusControls({
           {error}
         </p>
       )}
+      {status === "PENDING_REVIEW" && (
+        <p role="status" className="border-border bg-surface-muted rounded-md border p-3 text-sm">
+          Waiting for a moderator. New sellers&apos; first listings, and listings that might be prohibited items, are
+          checked before they go live. We&apos;ll notify you.
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
-        {status !== "ACTIVE" && (
+        {status !== "ACTIVE" && status !== "PENDING_REVIEW" && (
           <Button
             size="lg"
             disabled={pending}

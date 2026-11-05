@@ -7,6 +7,8 @@
  *     cancelled              refunded              disputed                 disputed
  *        v                      v                      v                       v
  *    CANCELLED               REFUNDED              DISPUTED --(resolved)--> COMPLETED or REFUNDED
+ *
+ *  PAID_HELD can also be disputed (item never sent).
  */
 
 export type OrderStatus =
@@ -23,7 +25,8 @@ export type OrderEventType =
   | "funds_released"
   | "dispute_opened"
   | "dispute_resolved_for_seller"
-  | "dispute_resolved_for_buyer";
+  | "dispute_resolved_for_buyer"
+  | "staff_refunded";
 
 const transitions: Record<OrderEventType, Partial<Record<OrderStatus, OrderStatus>>> = {
   payment_succeeded: { PENDING_PAYMENT: "PAID_HELD" },
@@ -36,9 +39,12 @@ const transitions: Record<OrderEventType, Partial<Record<OrderStatus, OrderStatu
   // No confirmation and no dispute by the deadline: treated as delivered.
   auto_released: { SHIPPED: "DELIVERED" },
   funds_released: { DELIVERED: "COMPLETED" },
-  dispute_opened: { SHIPPED: "DISPUTED", DELIVERED: "DISPUTED" },
+  // PAID_HELD too: "the seller never sent it" is the most common problem.
+  dispute_opened: { PAID_HELD: "DISPUTED", SHIPPED: "DISPUTED", DELIVERED: "DISPUTED" },
   dispute_resolved_for_seller: { DISPUTED: "DELIVERED" },
   dispute_resolved_for_buyer: { DISPUTED: "REFUNDED" },
+  // Staff cancel a paid order that hasn't been sent, e.g. after a fraud review.
+  staff_refunded: { PAID_HELD: "REFUNDED" },
 };
 
 export class InvalidTransitionError extends Error {

@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireUserOrRedirect } from "@/server/auth/current-user";
@@ -13,6 +15,11 @@ export default function AdminPage() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-3xl font-bold">Admin</h1>
+      <div>
+        <Button asChild>
+          <Link href="/admin/moderation">Open moderation queues</Link>
+        </Button>
+      </div>
       <Suspense fallback={<Skeleton className="h-40 w-full" />}>
         <AdminOverview />
       </Suspense>

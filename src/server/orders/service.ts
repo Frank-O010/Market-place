@@ -8,6 +8,9 @@ import * as templates from "@/server/email/templates";
 import { getPaymentGateway } from "@/server/payments";
 import { getSetting } from "@/server/settings";
 import { syncListingToSearch } from "@/server/search";
+import { notify } from "@/server/notifications";
+import { formatKes } from "@/lib/money";
+import { checkOrderForFraud } from "./fraud";
 import { createPayoutForOrder } from "./payouts";
 
 /**
@@ -39,7 +42,8 @@ const summarySelect = {
   items: { select: { listingId: true, variantId: true, titleSnapshot: true, quantity: true, unitPriceMinor: true } },
   buyer: { select: { email: true } },
   guestEmail: true,
-  seller: { select: { displayName: true, user: { select: { email: true } } } },
+  buyerPhone: true,
+  seller: { select: { displayName: true, user: { select: { id: true, email: true, phone: true } } } },
   payments: { select: { id: true, providerReference: true, status: true, amountMinor: true } },
 } as const;
 
@@ -129,9 +133,11 @@ export async function applyOrderEvent(input: ApplyInput): Promise<OrderStatus> {
 async function afterTransition(input: ApplyInput, to: OrderStatus, autoReleaseDays: number) {
   const order = await loadOrderSummary(input.orderId);
   const buyerEmail = order.buyer?.email ?? order.guestEmail;
+  await notifyParties(order, to, input);
 
   switch (to) {
     case "PAID_HELD":
+      await checkOrderForFraud(order.id);
       await sendEmail({
         to: buyerEmail,
         template: "payment_receipt",
@@ -159,7 +165,12 @@ async function afterTransition(input: ApplyInput, to: OrderStatus, autoReleaseDa
         orderId: order.id,
         event: "funds_released",
         actorId: null,
-        note: input.event === "auto_released" ? AUTO_RELEASE_NOTE : "The buyer confirmed delivery.",
+        note:
+          input.event === "auto_released"
+            ? AUTO_RELEASE_NOTE
+            : input.event === "dispute_resolved_for_seller"
+              ? "Dispute resolved: payment released to the seller."
+              : "The buyer confirmed delivery.",
       });
       break;
     case "COMPLETED":
@@ -188,6 +199,59 @@ async function afterTransition(input: ApplyInput, to: OrderStatus, autoReleaseDa
         orderId: order.id,
         ...templates.orderCancelled(order, false, input.note ?? "The order was cancelled."),
       });
+      break;
+  }
+}
+
+/** In-app notifications (and SMS for the two moments that need action) for each status change. */
+async function notifyParties(order: Awaited<ReturnType<typeof loadOrderSummary>>, to: OrderStatus, input: ApplyInput) {
+  const buyerUrl = `/account/orders/${order.id}`;
+  const sellerUrl = `/sell/orders/${order.id}`;
+  const toBuyer = (title: string, body: string, sms?: string) =>
+    order.buyerId
+      ? notify({
+          userId: order.buyerId,
+          type: `order.${to.toLowerCase()}`,
+          inApp: { title, body, url: buyerUrl },
+          sms: sms ? { text: sms, phone: order.buyerPhone } : undefined,
+        })
+      : undefined;
+  const toSeller = (title: string, body: string, sms?: string) =>
+    notify({
+      userId: order.seller.user.id,
+      type: `order.${to.toLowerCase()}`,
+      inApp: { title, body, url: sellerUrl },
+      sms: sms ? { text: sms } : undefined,
+    });
+  switch (to) {
+    case "PAID_HELD":
+      await toBuyer(`Order ${order.number} is paid`, "Your money is held safely until you confirm delivery.");
+      await toSeller(
+        `New order ${order.number}`,
+        `Paid ${formatKes(order.totalMinor)}. Please send the item and mark it as shipped.`,
+        `Soko: new paid order ${order.number} (${formatKes(order.totalMinor)}). Open your seller dashboard to ship it.`,
+      );
+      break;
+    case "SHIPPED":
+      await toBuyer(
+        `Order ${order.number} is on the way`,
+        "Confirm when it arrives so the seller is paid.",
+        `Soko: your order ${order.number} is on the way. Confirm delivery in the app once it arrives.`,
+      );
+      break;
+    case "COMPLETED":
+      await toSeller(`Order ${order.number} completed`, "Your payout is on its way.");
+      if (input.event === "funds_released") {
+        await toBuyer(`How was order ${order.number}?`, "Leave a review to help other buyers.");
+      }
+      break;
+    case "REFUNDED":
+      await toBuyer(`Order ${order.number} refunded`, input.note ?? "Your payment is being refunded.");
+      await toSeller(`Order ${order.number} refunded`, input.note ?? "The buyer was refunded.");
+      break;
+    case "CANCELLED":
+      await toBuyer(`Order ${order.number} cancelled`, input.note ?? "The order was cancelled.");
+      if (input.event !== "payment_expired") await toSeller(`Order ${order.number} cancelled`, input.note ?? "");
       break;
   }
 }

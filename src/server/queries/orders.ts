@@ -42,6 +42,25 @@ export const orderDetailSelect = {
     select: { providerReference: true, method: true, status: true, amountMinor: true, createdAt: true },
   },
   payout: { select: { id: true, status: true, amountMinor: true, paidAt: true, failureReason: true } },
+  fraudFlags: true,
+  fraudReviewedAt: true,
+  refundedMinor: true,
+  review: { select: { id: true, rating: true, body: true, sellerReply: true, createdAt: true } },
+  dispute: {
+    select: {
+      id: true,
+      reason: true,
+      details: true,
+      status: true,
+      evidenceKeys: true,
+      sellerResponse: true,
+      resolution: true,
+      resolutionNote: true,
+      refundAmountMinor: true,
+      createdAt: true,
+      resolvedAt: true,
+    },
+  },
 } as const;
 
 /** Loads an order if the user may see it (buyer, the seller, or staff); otherwise null. */

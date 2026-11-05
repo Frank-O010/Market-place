@@ -179,6 +179,7 @@ export async function getPublicSeller(slug: string) {
       ratingCount: true,
       badges: true,
       createdAt: true,
+      userId: true,
       user: { select: { status: true } },
     },
   });
@@ -195,7 +196,38 @@ export async function getPublicSeller(slug: string) {
     ratingCount: seller.ratingCount,
     badges: seller.badges,
     createdAt: seller.createdAt,
+    userId: seller.userId,
   };
+}
+
+/** A seller's visible reviews, newest first. Buyers are shown by first name only. */
+export async function getSellerReviews(sellerId: string, take = 20) {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(`seller:${sellerId}`);
+  const reviews = await db.review.findMany({
+    where: { sellerId, hiddenAt: null },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: {
+      id: true,
+      rating: true,
+      body: true,
+      sellerReply: true,
+      createdAt: true,
+      author: { select: { name: true } },
+      order: { select: { items: { select: { titleSnapshot: true }, take: 1 } } },
+    },
+  });
+  return reviews.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    body: r.body,
+    sellerReply: r.sellerReply,
+    createdAt: r.createdAt,
+    authorName: r.author.name.split(/\s+/)[0] || "Buyer",
+    itemTitle: r.order.items[0]?.titleSnapshot ?? null,
+  }));
 }
 
 export async function getSellerListings(sellerId: string, page: number, perPage = 24) {

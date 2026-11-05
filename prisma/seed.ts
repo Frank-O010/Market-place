@@ -62,6 +62,10 @@ const users: SeedUser[] = [
     roles: ["BUYER", "SELLER"],
     status: "SUSPENDED",
   },
+  // Past customers whose completed orders carry the demo reviews.
+  { key: "r_mary", name: "Mary Wambui", email: "mary@soko.test", phone: "+254722000001", roles: ["BUYER"] },
+  { key: "r_john", name: "John Kariuki", email: "john@soko.test", phone: "+254722000002", roles: ["BUYER"] },
+  { key: "r_faith", name: "Faith Akinyi", email: "faith@soko.test", phone: "+254722000003", roles: ["BUYER"] },
   {
     key: "s_wanjiku",
     name: "Wanjiku Mwangi",
@@ -105,7 +109,7 @@ const sellers: {
   location: string;
   bio: string;
   tier: VerificationTier;
-  rating: [number, number];
+  rating: [number, number]; // replaced by the demo reviews created below
   badges: string[];
 }[] = [
   {
@@ -595,7 +599,9 @@ async function main() {
         roles: u.roles,
         status: u.status ?? "ACTIVE",
         emailVerified: true,
-        phoneVerified: true,
+        phoneVerified: u.key !== "s_zawadi", // Zawadi's shop shows the unverified state
+        // Established accounts, so the "new account, high-value order" fraud rule doesn't fire.
+        createdAt: new Date(Date.now() - 365 * 86_400_000),
       },
     });
     userIds.set(u.key, created.id);
@@ -651,6 +657,90 @@ async function main() {
         location: seller.location,
         // Spread publish times so "latest" ordering is stable and realistic.
         publishedAt: status === "ACTIVE" || status === "SOLD" ? new Date(now - i * 3_600_000) : null,
+      },
+    });
+  }
+
+  console.log("Past orders and reviews…");
+  const reviewers = ["r_mary", "r_john", "r_faith"];
+  const demoReviews: Record<string, [number, string][]> = {
+    s_wanjiku: [
+      [5, "Phone was exactly as described and the battery is great. Fast pickup in Westlands."],
+      [5, "Honest seller, tested the laptop with me before I paid."],
+      [4, "Good condition. Took a day longer than promised but kept me updated."],
+    ],
+    s_baraka: [
+      [5, "Solid sofa, delivery guys were careful."],
+      [4, "Nice bed frame. One bolt was missing but Baraka sent it the next day."],
+      [4, ""],
+    ],
+    s_amina: [
+      [5, "Lovely dress, fits perfectly."],
+      [5, "Great quality for the price."],
+      [5, "Fast and friendly."],
+    ],
+    s_kiprop: [
+      [4, "Bike was in good shape after a service."],
+      [4, "Tent as described."],
+      [5, "Very helpful with sizing."],
+    ],
+  };
+  let orderSeq = 0;
+  for (const [sellerKey, entries] of Object.entries(demoReviews)) {
+    const sellerId = sellerIds.get(sellerKey)!;
+    const listing = await db.listing.findFirstOrThrow({
+      where: { sellerId, status: "ACTIVE" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, title: true, priceMinor: true },
+    });
+    for (const [j, [rating, body]] of entries.entries()) {
+      orderSeq += 1;
+      const placedAt = new Date(now - (30 + orderSeq * 3) * 86_400_000);
+      const fee = Math.round(listing.priceMinor / 10);
+      const order = await db.order.create({
+        data: {
+          number: `SK-DEMO${String(orderSeq).padStart(2, "0")}`,
+          buyerId: userIds.get(reviewers[j]!)!,
+          sellerId,
+          status: "COMPLETED",
+          subtotalMinor: listing.priceMinor,
+          platformFeeMinor: fee,
+          totalMinor: listing.priceMinor,
+          deliveryMethod: "PICKUP",
+          createdAt: placedAt,
+          shippedAt: new Date(placedAt.getTime() + 86_400_000),
+          deliveredAt: new Date(placedAt.getTime() + 2 * 86_400_000),
+          completedAt: new Date(placedAt.getTime() + 2 * 86_400_000),
+          items: {
+            create: {
+              listingId: listing.id,
+              titleSnapshot: listing.title,
+              unitPriceMinor: listing.priceMinor,
+              quantity: 1,
+            },
+          },
+          events: { create: { status: "COMPLETED", note: "Demo order", createdAt: placedAt } },
+        },
+        select: { id: true },
+      });
+      await db.review.create({
+        data: {
+          orderId: order.id,
+          authorId: userIds.get(reviewers[j]!)!,
+          sellerId,
+          rating,
+          body: body || null,
+          createdAt: new Date(placedAt.getTime() + 3 * 86_400_000),
+        },
+      });
+    }
+    // The rating shown on the shop comes from its real reviews.
+    const ratings = entries.map(([r]) => r);
+    await db.sellerProfile.update({
+      where: { id: sellerId },
+      data: {
+        ratingAverage: Math.round((ratings.reduce((a, b) => a + b, 0) * 100) / ratings.length),
+        ratingCount: ratings.length,
       },
     });
   }
