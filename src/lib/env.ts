@@ -52,6 +52,19 @@ const serverSchema = z
       .regex(/^[a-z0-9_]*$/)
       .default(""),
 
+    // Paystack: card and M-Pesa (STK push) payments, refunds and seller payouts.
+    // Use the sk_test_ key until launch. Without it, local development and CI use a mock gateway
+    // and deployed sites show "checkout isn't switched on yet".
+    PAYSTACK_SECRET_KEY: z
+      .string()
+      .regex(/^sk_(test|live)_[A-Za-z0-9]+$/, "PAYSTACK_SECRET_KEY should start with sk_test_ or sk_live_")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+
+    // Resend for receipts and order emails. Without it, emails are kept in the dev outbox only.
+    RESEND_API_KEY: optionalString,
+    EMAIL_FROM: z.string().min(3).default("Soko <orders@soko.example>"),
+
     // Vercel sends this as a bearer token to cron routes (search index repair).
     CRON_SECRET: optionalString,
 

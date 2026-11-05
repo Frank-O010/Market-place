@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SearchBar } from "@/components/search-bar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
+import { CartLink } from "@/components/cart-link";
 
 export function SiteHeader() {
   return (
@@ -29,6 +30,9 @@ export function SiteHeader() {
             </Link>
           </Button>
           <ThemeToggle />
+          <Suspense fallback={<Skeleton className="size-11" />}>
+            <CartLink />
+          </Suspense>
           <Suspense fallback={<Skeleton className="size-11" />}>
             <UserMenu />
           </Suspense>

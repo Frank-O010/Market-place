@@ -73,6 +73,12 @@ async function SellerHome() {
         <Button asChild variant="secondary">
           <Link href="/sell/listings">My listings</Link>
         </Button>
+        <Button asChild variant="secondary">
+          <Link href="/sell/orders">Orders</Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href="/sell/payouts">Payouts</Link>
+        </Button>
         <Button asChild variant="ghost">
           <Link href="/sell/onboarding">Shop details</Link>
         </Button>
