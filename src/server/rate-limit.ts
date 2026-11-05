@@ -32,6 +32,7 @@ export const RATE_LIMITS = {
   moderation: { limit: 120, windowSeconds: 60 },
   admin: { limit: 60, windowSeconds: 60 },
   notificationSettings: { limit: 30, windowSeconds: 3600 },
+  authStatus: { limit: 20, windowSeconds: 60 },
 } as const;
 
 export type RateLimitPolicy = keyof typeof RATE_LIMITS;
