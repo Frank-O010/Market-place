@@ -10,6 +10,7 @@ import { getSetting } from "@/server/settings";
 import { syncListingToSearch } from "@/server/search";
 import { notify } from "@/server/notifications";
 import { formatKes } from "@/lib/money";
+import { captureEvent } from "@/server/analytics";
 import { checkOrderForFraud } from "./fraud";
 import { createPayoutForOrder } from "./payouts";
 
@@ -138,6 +139,7 @@ async function afterTransition(input: ApplyInput, to: OrderStatus, autoReleaseDa
   switch (to) {
     case "PAID_HELD":
       await checkOrderForFraud(order.id);
+      await trackOrderPaid(order.id);
       await sendEmail({
         to: buyerEmail,
         template: "payment_receipt",
@@ -201,6 +203,24 @@ async function afterTransition(input: ApplyInput, to: OrderStatus, autoReleaseDa
       });
       break;
   }
+}
+
+/** The last step of the analytics funnel, sent from the server (only for buyers who opted in). */
+async function trackOrderPaid(orderId: string) {
+  const order = await db.order.findUniqueOrThrow({
+    where: { id: orderId },
+    select: {
+      totalMinor: true,
+      buyerId: true,
+      buyer: { select: { analyticsConsentAt: true } },
+      items: { select: { quantity: true } },
+    },
+  });
+  if (!order.buyerId || !order.buyer?.analyticsConsentAt) return;
+  await captureEvent("order_paid", order.buyerId, {
+    total_kes: order.totalMinor / 100,
+    items: order.items.reduce((n, i) => n + i.quantity, 0),
+  });
 }
 
 /** In-app notifications (and SMS for the two moments that need action) for each status change. */

@@ -52,9 +52,10 @@ function PageLink({ href, label, children }: { href?: string; label: string; chi
       {children}
     </Link>
   ) : (
-    <span aria-label={label} aria-disabled className={className}>
+    // A link with no destination: announced as a disabled link rather than hidden.
+    <a role="link" aria-label={label} aria-disabled="true" className={className}>
       {children}
-    </span>
+    </a>
   );
 }
 

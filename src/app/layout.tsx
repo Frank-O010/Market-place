@@ -4,6 +4,7 @@ import "./globals.css";
 import { site } from "@/config/site";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toast";
+import { ConsentBanner } from "@/components/privacy-forms";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { CategoryNav } from "@/components/category-nav";
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               </main>
               <SiteFooter />
               <Toaster />
+              <ConsentBanner />
             </SavedItemsProvider>
           </ThemeProvider>
         </AuthProvider>

@@ -36,12 +36,18 @@ async function AccountDetails() {
             </Badge>
           ))}
         </p>
-        <p className="flex gap-4 pt-2 text-sm">
+        <p className="flex flex-wrap gap-x-4 gap-y-2 pt-2 text-sm">
           <Link href="/account/orders" className="text-brand font-medium underline-offset-4 hover:underline">
             My orders
           </Link>
           <Link href="/account/saved" className="text-brand font-medium underline-offset-4 hover:underline">
             Saved items
+          </Link>
+          <Link href="/account/security" className="text-brand font-medium underline-offset-4 hover:underline">
+            Security
+          </Link>
+          <Link href="/account/privacy" className="text-brand font-medium underline-offset-4 hover:underline">
+            Privacy and data
           </Link>
         </p>
       </CardContent>

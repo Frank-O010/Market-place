@@ -179,6 +179,7 @@ async function needsReview(
   const hits = findProhibitedKeywords(`${title}\n${description}`, await getSetting("prohibited_keywords"));
   if (hits.length > 0) return { reason: "keywords", hits };
   if (publishedBefore) return null;
+  if (await getSetting("review_all_new_listings")) return { reason: "review_all" };
   const seller = await db.sellerProfile.findUniqueOrThrow({
     where: { id: sellerId },
     select: { verificationTier: true },

@@ -100,15 +100,17 @@ export function ModNoteButton({
   );
 }
 
-export function ListingModeration({ listingId }: { listingId: string }) {
+export function ListingModeration({ listingId, canApprove = true }: { listingId: string; canApprove?: boolean }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <ModButton
-        label="Approve"
-        done="Listing approved."
-        variant="primary"
-        action={() => actions.approveListing(listingId)}
-      />
+      {canApprove && (
+        <ModButton
+          label="Approve"
+          done="Listing approved."
+          variant="primary"
+          action={() => actions.approveListing(listingId)}
+        />
+      )}
       <ModNoteButton
         label="Send back"
         title="Send back to the seller"

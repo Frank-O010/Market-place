@@ -12,6 +12,7 @@ import { getPublicListing, getSimilarListings, type PublicListing } from "@/serv
 import { getCurrentUser } from "@/server/auth/current-user";
 import { MessageButton } from "@/components/trust/message-seller-button";
 import { ReportButton } from "@/components/trust/report-button";
+import { TrackEvent } from "@/components/analytics";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { AddToCart } from "@/components/orders/add-to-cart";
 import { JsonLd } from "@/components/json-ld";
@@ -168,6 +169,10 @@ async function Listing({ params }: { params: Promise<{ listing: string }> }) {
       </Suspense>
 
       <ProductJsonLd listing={listing} sold={sold} />
+      <TrackEvent
+        event="listing_viewed"
+        properties={{ listing_id: listing.id, category: listing.category.name, price_kes: listing.priceMinor / 100 }}
+      />
     </div>
   );
 }

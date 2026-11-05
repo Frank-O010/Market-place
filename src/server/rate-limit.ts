@@ -30,6 +30,7 @@ export const RATE_LIMITS = {
   dispute: { limit: 5, windowSeconds: 3600 },
   idVerification: { limit: 5, windowSeconds: 86_400 },
   moderation: { limit: 120, windowSeconds: 60 },
+  admin: { limit: 60, windowSeconds: 60 },
   notificationSettings: { limit: 30, windowSeconds: 3600 },
 } as const;
 
@@ -97,6 +98,10 @@ export async function checkRateLimit(policy: RateLimitPolicy, identifier: string
 /** Throws RateLimitError (429) when the identifier is over the policy's limit. */
 export async function enforceRateLimit(policy: RateLimitPolicy, identifier: string) {
   const result = await checkRateLimit(policy, identifier);
-  if (!result.success) throw new RateLimitError(result.resetAt);
+  if (!result.success) {
+    const { securityEvent } = await import("@/server/security-events");
+    await securityEvent("rate_limited", { action: policy });
+    throw new RateLimitError(result.resetAt);
+  }
   return result;
 }

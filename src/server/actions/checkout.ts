@@ -73,6 +73,9 @@ export async function placeOrder(_prev: ActionResult | null, form: FormData): Pr
     const input = parsed.data;
     const gateway = getPaymentGateway();
     if (!gateway) return { ok: false, error: "Checkout isn't switched on yet. Please try again soon." };
+    if (!(await getSetting("checkout_enabled"))) {
+      return { ok: false, error: "Checkout is paused for a few minutes. Your cart is saved; please try again soon." };
+    }
     if (input.paymentMethod === "CARD" && !user.email) {
       return { ok: false, error: "Add an email address to your account to pay by card, or pay with M-Pesa." };
     }

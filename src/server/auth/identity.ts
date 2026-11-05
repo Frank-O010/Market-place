@@ -43,3 +43,14 @@ export async function getProviderProfile(): Promise<ProviderProfile | null> {
     phoneVerified: user.primaryPhoneNumber?.verification?.status === "verified",
   };
 }
+
+/**
+ * Whether the signed-in person has two-step verification turned on in Clerk. Required for staff
+ * and for sellers who have been paid. The local dev sign-in has no 2FA, so it always passes there.
+ */
+export async function hasTwoFactor(): Promise<boolean> {
+  if (env().AUTH_PROVIDER === "dev") return true;
+  const { currentUser } = await import("@clerk/nextjs/server");
+  const user = await currentUser();
+  return Boolean(user?.twoFactorEnabled);
+}

@@ -4,9 +4,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { formatKes } from "@/lib/money";
-import { requireUserOrRedirect } from "@/server/auth/current-user";
+import { requireStaffPage } from "@/server/auth/staff";
 import { db } from "@/server/db";
-import { can } from "@/server/policy/can";
 import { loadOrderForViewer } from "@/server/queries/orders";
 import { DisputeResolutionForm } from "@/components/admin/moderation-actions";
 import { OrderItems, OrderStatusBadge, OrderTimeline } from "@/components/orders/order-summary";
@@ -25,8 +24,8 @@ export default function DisputePage({ params }: PageProps<"/admin/disputes/[id]"
 
 async function Dispute({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await requireUserOrRedirect(`/admin/disputes/${id}`);
-  if (!can(user, "moderate", "platform", {}) || !/^[a-z0-9]{20,40}$/i.test(id)) notFound();
+  const user = await requireStaffPage(`/admin/disputes/${id}`);
+  if (!/^[a-z0-9]{20,40}$/i.test(id)) notFound();
   const dispute = await db.dispute.findUnique({
     where: { id },
     select: {

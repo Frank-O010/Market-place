@@ -52,7 +52,7 @@ test.describe("roles", () => {
 
   test("admins and moderators can see the admin area", async ({ page }) => {
     await signInAs(page, seeded.admin, "/admin");
-    await expect(page.getByTestId("admin-stats").filter({ visible: true })).toContainText("Active listings");
+    await expect(page.getByTestId("admin-stats").filter({ visible: true })).toContainText("Sales (GMV)");
     await signInAs(page, seeded.moderator, "/admin");
     await expect(page.getByTestId("admin-stats").filter({ visible: true })).toBeVisible();
   });

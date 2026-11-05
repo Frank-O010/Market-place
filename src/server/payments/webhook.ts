@@ -1,6 +1,7 @@
 import "server-only";
 import * as Sentry from "@sentry/nextjs";
 import { audit } from "@/server/audit";
+import { securityEvent } from "@/server/security-events";
 import { db } from "@/server/db";
 import { sendEmail } from "@/server/email";
 import { latePaymentRefunded } from "@/server/email/templates";
@@ -54,7 +55,7 @@ async function onChargeSuccess(data: { reference: string; amount: number; curren
   if (decision.action !== "ignore" && gateway && gateway.mode !== "mock") {
     const verified = await gateway.verify(String(data.reference));
     if (verified.status !== "success" || verified.amountMinor !== Number(data.amount)) {
-      await audit({
+      await securityEvent("payment_mismatch", {
         action: "payment.verify_mismatch",
         targetType: "payment",
         targetId: payment?.id,
@@ -130,6 +131,12 @@ async function onChargeFailed(data: { reference: string; gateway_response?: stri
   });
   if (decideChargeFailed(payment).action !== "mark_failed") return;
   await db.payment.updateMany({ where: { id: payment!.id, status: "PENDING" }, data: { status: "FAILED" } });
+  await securityEvent("payment_failed", {
+    action: "payment.failed",
+    targetType: "payment",
+    targetId: payment!.id,
+    metadata: { reason: data.gateway_response?.slice(0, 120) ?? null },
+  });
 }
 
 async function onTransfer(reference: string, outcome: "success" | "failed", reason?: string) {

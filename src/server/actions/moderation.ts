@@ -6,6 +6,8 @@ import { parseKes } from "@/lib/money";
 import { idSchema } from "@/lib/trust/schemas";
 import { audit } from "@/server/audit";
 import { requireUser, type CurrentUser } from "@/server/auth/current-user";
+import { hasTwoFactor } from "@/server/auth/identity";
+import { securityEvent } from "@/server/security-events";
 import { db } from "@/server/db";
 import { DisputeError, resolveDispute } from "@/server/disputes";
 import { listingChanged } from "@/server/listings/cache";
@@ -26,6 +28,7 @@ const requiredNote = noteSchema.min(5, "Add a short reason (at least 5 character
 async function requireStaff(): Promise<CurrentUser> {
   const user = await requireUser();
   assertCan(user, "moderate", "platform", {});
+  if (!(await hasTwoFactor())) throw new ForbiddenError("Turn on two-step verification before using staff tools.");
   await enforceRateLimit("moderation", user.id);
   return user;
 }
@@ -46,13 +49,16 @@ async function record(
       data: { status: reportStatus, resolvedAt: new Date() },
     });
   }
-  await audit({
+  const input = {
     action: `moderation.${type.toLowerCase()}`,
     actorId: user.id,
     targetType: targetType.toLowerCase(),
     targetId,
     metadata: { note },
-  });
+  };
+  // Suspensions are alerted on (Sentry) as well as logged.
+  if (type === "SUSPEND_USER" || type === "UNSUSPEND_USER") await securityEvent("admin_action", input);
+  else await audit(input);
   revalidatePath("/admin/moderation");
 }
 
@@ -273,6 +279,12 @@ export async function refundFlaggedOrder(orderId: string, note: string): Promise
       actorId: user.id,
       note: `Refunded after a safety check: ${reason}`,
     });
+    await securityEvent("admin_action", {
+      action: "order.staff_refund",
+      actorId: user.id,
+      targetType: "order",
+      targetId: order.id,
+    });
     revalidatePath("/admin/moderation");
     return { ok: true };
   } catch (error) {
@@ -291,6 +303,7 @@ export async function resolveDisputeAsStaff(
   try {
     const user = await requireUser();
     assertCan(user, "resolve", "dispute", { openedById: "", order: { buyerId: null, sellerId: "" } });
+    if (!(await hasTwoFactor())) throw new ForbiddenError("Turn on two-step verification before using staff tools.");
     await enforceRateLimit("moderation", user.id);
     const parsedResolution = z.enum(["FULL_REFUND", "PARTIAL_REFUND", "RELEASE_TO_SELLER"]).parse(resolution);
     const reason = requiredNote.parse(note);
@@ -308,6 +321,13 @@ export async function resolveDisputeAsStaff(
       refundAmountMinor,
       note: reason,
       actorId: user.id,
+    });
+    await securityEvent("admin_action", {
+      action: `dispute.resolve.${parsedResolution.toLowerCase()}`,
+      actorId: user.id,
+      targetType: "dispute",
+      targetId: disputeId,
+      metadata: { refundAmountMinor: refundAmountMinor ?? null },
     });
     revalidatePath(`/admin/disputes/${disputeId}`);
     return { ok: true };
