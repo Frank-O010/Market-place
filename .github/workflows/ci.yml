@@ -17,6 +17,8 @@ env:
   AUTH_PROVIDER: dev
   ALLOW_DEV_AUTH: "true"
   NEXT_TELEMETRY_DISABLED: "1"
+  MEILISEARCH_HOST: http://localhost:7700
+  MEILISEARCH_ADMIN_KEY: ci-meilisearch-master-key-0123456789
 
 jobs:
   checks:
@@ -36,6 +38,13 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # Real Meilisearch, so the end-to-end typo search exercises the production search path.
+      meilisearch:
+        image: getmeili/meilisearch:v1.30
+        env:
+          MEILI_MASTER_KEY: ci-meilisearch-master-key-0123456789
+          MEILI_NO_ANALYTICS: "true"
+        ports: ["7700:7700"]
     steps:
       - uses: actions/checkout@v4
 
@@ -69,6 +78,11 @@ jobs:
 
       - name: Seed demo data
         run: pnpm db:seed
+
+      - name: Build the search index
+        run: |
+          for i in $(seq 1 30); do curl -sf http://localhost:7700/health && break; sleep 2; done
+          pnpm search:reindex
 
       # Production uses Clerk, which renders different components than the dev sign-in used by
       # the e2e tests, so prerender the app in Clerk mode too. Placeholder keys are enough to build.

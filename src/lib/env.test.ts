@@ -35,4 +35,18 @@ describe("parseServerEnv", () => {
   it("fails clearly when DATABASE_URL is missing", () => {
     expect(() => parseServerEnv({ AUTH_PROVIDER: "dev" })).toThrow(/DATABASE_URL/);
   });
+
+  it("requires the full set of R2 variables and a public image origin", () => {
+    const dev = { ...base, AUTH_PROVIDER: "dev" };
+    expect(() => parseServerEnv({ ...dev, R2_BUCKET: "photos" })).toThrow(/R2_ACCOUNT_ID/);
+    const r2 = { R2_ACCOUNT_ID: "a", R2_ACCESS_KEY_ID: "b", R2_SECRET_ACCESS_KEY: "c", R2_BUCKET: "d" };
+    expect(() => parseServerEnv({ ...dev, ...r2 })).toThrow(/NEXT_PUBLIC_IMAGE_ORIGIN/);
+    expect(parseServerEnv({ ...dev, ...r2, NEXT_PUBLIC_IMAGE_ORIGIN: "https://img.soko.example" }).R2_BUCKET).toBe("d");
+  });
+
+  it("requires both Meilisearch variables or neither", () => {
+    expect(() => parseServerEnv({ ...base, AUTH_PROVIDER: "dev", MEILISEARCH_HOST: "https://ms.example" })).toThrow(
+      /MEILISEARCH_ADMIN_KEY/,
+    );
+  });
 });

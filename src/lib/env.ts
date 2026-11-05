@@ -34,6 +34,27 @@ const serverSchema = z
     SENTRY_DSN: optionalUrl,
     NEXT_PUBLIC_SENTRY_DSN: optionalUrl,
 
+    // Cloudflare R2 (S3-compatible) for listing photos. Without it, photos are stored on the
+    // local disk in development and tests, and uploads are switched off on deployed sites.
+    R2_ACCOUNT_ID: optionalString,
+    R2_ACCESS_KEY_ID: optionalString,
+    R2_SECRET_ACCESS_KEY: optionalString,
+    R2_BUCKET: optionalString,
+    NEXT_PUBLIC_IMAGE_ORIGIN: optionalUrl,
+    // Signs local-disk upload links. A secret derived from DATABASE_URL is used when unset.
+    UPLOAD_SIGNING_SECRET: optionalString,
+
+    // Meilisearch for typo-tolerant search. Without it, search uses Postgres fuzzy matching.
+    MEILISEARCH_HOST: optionalUrl,
+    MEILISEARCH_ADMIN_KEY: optionalString,
+    MEILISEARCH_INDEX_PREFIX: z
+      .string()
+      .regex(/^[a-z0-9_]*$/)
+      .default(""),
+
+    // Vercel sends this as a bearer token to cron routes (search index repair).
+    CRON_SECRET: optionalString,
+
     NEXT_PUBLIC_SITE_URL: z.url().default("http://localhost:3000"),
     NEXT_PUBLIC_WHATSAPP_SUPPORT_NUMBER: z
       .string()
@@ -58,6 +79,27 @@ const serverSchema = z
           ctx.addIssue({ code: "custom", path: [key], message: `${key} is required when AUTH_PROVIDER=clerk` });
         }
       }
+    }
+    const r2Keys = ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET"] as const;
+    const r2Set = r2Keys.filter((key) => env[key]);
+    if (r2Set.length > 0 && r2Set.length < r2Keys.length) {
+      for (const key of r2Keys.filter((k) => !env[k])) {
+        ctx.addIssue({ code: "custom", path: [key], message: `${key} is required when any R2_* variable is set` });
+      }
+    }
+    if (r2Set.length === r2Keys.length && !env.NEXT_PUBLIC_IMAGE_ORIGIN) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["NEXT_PUBLIC_IMAGE_ORIGIN"],
+        message: "Set NEXT_PUBLIC_IMAGE_ORIGIN to the R2 bucket's public URL or custom domain",
+      });
+    }
+    if (Boolean(env.MEILISEARCH_HOST) !== Boolean(env.MEILISEARCH_ADMIN_KEY)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["MEILISEARCH_ADMIN_KEY"],
+        message: "Set both MEILISEARCH_HOST and MEILISEARCH_ADMIN_KEY, or neither.",
+      });
     }
     if (Boolean(env.UPSTASH_REDIS_REST_URL) !== Boolean(env.UPSTASH_REDIS_REST_TOKEN)) {
       ctx.addIssue({

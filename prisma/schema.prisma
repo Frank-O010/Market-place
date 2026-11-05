@@ -2,12 +2,15 @@
 // Money is always stored as integers in minor units (KES cents). Never use floats for money.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  // pg_trgm powers the fuzzy-search fallback used when Meilisearch is unavailable.
+  extensions = [pg_trgm]
 }
 
 // ---------------------------------------------------------------------------
@@ -32,6 +35,12 @@ enum VerificationTier {
   PHONE_VERIFIED
   ID_VERIFIED
   BUSINESS_VERIFIED
+}
+
+enum ImageStatus {
+  PENDING // uploaded, not yet processed
+  READY // re-encoded and safe to show publicly
+  REJECTED // failed validation; never shown
 }
 
 enum ListingCondition {
@@ -148,18 +157,18 @@ model User {
   updatedAt      DateTime   @updatedAt
   deletedAt      DateTime?
 
-  sellerProfile    SellerProfile?
-  savedItems       SavedItem[]
-  cart             Cart?
-  ordersAsBuyer    Order[]            @relation("BuyerOrders")
-  reviewsWritten   Review[]           @relation("ReviewAuthor")
-  conversationsAsBuyer Conversation[] @relation("ConversationBuyer")
-  messagesSent     Message[]
-  reportsFiled     Report[]           @relation("Reporter")
-  moderationActions ModerationAction[] @relation("Moderator")
-  disputesOpened   Dispute[]          @relation("DisputeOpener")
-  notifications    Notification[]
-  auditLogs        AuditLog[]
+  sellerProfile        SellerProfile?
+  savedItems           SavedItem[]
+  cart                 Cart?
+  ordersAsBuyer        Order[]            @relation("BuyerOrders")
+  reviewsWritten       Review[]           @relation("ReviewAuthor")
+  conversationsAsBuyer Conversation[]     @relation("ConversationBuyer")
+  messagesSent         Message[]
+  reportsFiled         Report[]           @relation("Reporter")
+  moderationActions    ModerationAction[] @relation("Moderator")
+  disputesOpened       Dispute[]          @relation("DisputeOpener")
+  notifications        Notification[]
+  auditLogs            AuditLog[]
 
   @@index([status])
 }
@@ -179,13 +188,14 @@ model SellerProfile {
   ratingAverage    Int              @default(0) // rating x 100, e.g. 465 = 4.65
   ratingCount      Int              @default(0)
   badges           String[]         @default([])
+  onboardedAt      DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  listings      Listing[]
+  listings       Listing[]
   ordersAsSeller Order[]        @relation("SellerOrders")
-  payouts       Payout[]
-  conversations Conversation[] @relation("ConversationSeller")
+  payouts        Payout[]
+  conversations  Conversation[] @relation("ConversationSeller")
 }
 
 // ---------------------------------------------------------------------------
@@ -239,6 +249,7 @@ model Listing {
   @@index([sellerId, status])
   @@index([categoryId, status])
   @@index([status, publishedAt])
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "Listing_title_trgm_idx")
 }
 
 model ListingVariant {
@@ -257,16 +268,17 @@ model ListingVariant {
 }
 
 model ListingImage {
-  id        String   @id @default(cuid())
-  listingId String
-  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  storageKey String // R2 object key
-  width     Int
-  height    Int
-  position  Int      @default(0)
-  altText   String
-  scanned   Boolean  @default(false) // malware scan passed; only scanned images are public
-  createdAt DateTime @default(now())
+  id         String      @id @default(cuid())
+  listingId  String
+  listing    Listing     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  // Key prefix of the processed images in object storage; sizes are "<key>/<size>.webp".
+  storageKey String      @unique
+  width      Int
+  height     Int
+  position   Int         @default(0)
+  altText    String
+  status     ImageStatus @default(PENDING) // only READY images are ever public
+  createdAt  DateTime    @default(now())
 
   @@index([listingId, position])
 }
@@ -307,32 +319,32 @@ model CartItem {
 // ---------------------------------------------------------------------------
 
 model Order {
-  id               String      @id @default(cuid())
-  number           String      @unique // human-friendly, e.g. "MP-24A9F3"
+  id               String        @id @default(cuid())
+  number           String        @unique // human-friendly, e.g. "MP-24A9F3"
   buyerId          String?
-  buyer            User?       @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: SetNull)
+  buyer            User?         @relation("BuyerOrders", fields: [buyerId], references: [id], onDelete: SetNull)
   guestEmail       String? // guest checkout
   guestPhone       String?
   sellerId         String
   seller           SellerProfile @relation("SellerOrders", fields: [sellerId], references: [id])
-  status           OrderStatus @default(PENDING_PAYMENT)
+  status           OrderStatus   @default(PENDING_PAYMENT)
   subtotalMinor    Int
-  deliveryFeeMinor Int         @default(0)
+  deliveryFeeMinor Int           @default(0)
   platformFeeMinor Int // commission, deducted from seller payout
   totalMinor       Int // what the buyer pays
-  currency         String      @default("KES")
+  currency         String        @default("KES")
   deliveryAddress  Json?
   deliveredAt      DateTime?
   autoReleaseAt    DateTime? // funds release automatically after this if no dispute
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  items    OrderItem[]
-  payments Payment[]
-  payout   Payout?     @relation(fields: [payoutId], references: [id])
-  payoutId String?
-  review   Review?
-  dispute  Dispute?
+  items         OrderItem[]
+  payments      Payment[]
+  payout        Payout?        @relation(fields: [payoutId], references: [id])
+  payoutId      String?
+  review        Review?
+  dispute       Dispute?
   conversations Conversation[]
 
   @@index([buyerId, createdAt])
@@ -390,17 +402,17 @@ model Payout {
 // ---------------------------------------------------------------------------
 
 model Conversation {
-  id        String         @id @default(cuid())
+  id        String        @id @default(cuid())
   buyerId   String
-  buyer     User           @relation("ConversationBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  buyer     User          @relation("ConversationBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
   sellerId  String
-  seller    SellerProfile  @relation("ConversationSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  seller    SellerProfile @relation("ConversationSeller", fields: [sellerId], references: [id], onDelete: Cascade)
   listingId String?
-  listing   Listing?       @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  listing   Listing?      @relation(fields: [listingId], references: [id], onDelete: SetNull)
   orderId   String?
-  order     Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  order     Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
   messages  Message[]
 
   @@unique([buyerId, sellerId, listingId])

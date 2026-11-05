@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toast";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { CategoryNav } from "@/components/category-nav";
+import { SavedItemsProvider } from "@/components/saved-items";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
@@ -37,13 +38,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex min-h-full flex-col">
         <AuthProvider>
           <ThemeProvider>
-            <SiteHeader />
-            <CategoryNav />
-            <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-              {children}
-            </main>
-            <SiteFooter />
-            <Toaster />
+            <SavedItemsProvider>
+              <SiteHeader />
+              <CategoryNav />
+              <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+                {children}
+              </main>
+              <SiteFooter />
+              <Toaster />
+            </SavedItemsProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>

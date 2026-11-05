@@ -1,6 +1,7 @@
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { legalPages } from "@/config/site";
+import { checkPublicRoute } from "@/server/routing/public-routes";
 
 /**
  * Runs before every matched request.
@@ -16,7 +17,7 @@ const devToolsEnabled = process.env.NODE_ENV !== "production" || process.env.ALL
 const legalSlugs = new Set<string>(legalPages.map((page) => page.slug));
 
 /** Early responses that don't depend on who is signed in. Returns undefined to carry on. */
-function guard(request: NextRequest): NextResponse | undefined {
+async function guard(request: NextRequest): Promise<NextResponse | undefined> {
   const { pathname } = request.nextUrl;
   if (pathname.startsWith("/dev") && !devToolsEnabled) {
     return new NextResponse("Not found", { status: 404 });
@@ -27,6 +28,16 @@ function guard(request: NextRequest): NextResponse | undefined {
   if (legal && !legalSlugs.has(legal[1]!)) {
     return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
   }
+  // Listing, category and seller pages: 404 or redirect to the canonical address.
+  const route = await checkPublicRoute(pathname);
+  if (route?.kind === "missing") {
+    return NextResponse.rewrite(new URL("/not-found", request.url), { status: 404 });
+  }
+  if (route?.kind === "redirect") {
+    const url = new URL(route.to, request.url);
+    url.search = request.nextUrl.search;
+    return NextResponse.redirect(url, 308);
+  }
   return undefined;
 }
 
@@ -34,9 +45,9 @@ function guard(request: NextRequest): NextResponse | undefined {
 // response (like the 404 page, whose header reads the session) still have Clerk's auth context.
 const clerk = clerkMiddleware((_auth, request) => guard(request));
 
-export default function proxy(request: NextRequest, event: NextFetchEvent) {
+export default async function proxy(request: NextRequest, event: NextFetchEvent) {
   if (useClerk) return clerk(request, event);
-  return guard(request) ?? NextResponse.next();
+  return (await guard(request)) ?? NextResponse.next();
 }
 
 export const config = {

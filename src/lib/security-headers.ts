@@ -26,7 +26,8 @@ export function buildCsp({ isDev, siteUrl, imageOrigins = [] }: CspOptions): str
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:", "blob:", "https://img.clerk.com", ...imageOrigins],
     "font-src": ["'self'"],
-    "connect-src": ["'self'", ...clerk, ...sentry, ...(isDev ? ["ws:"] : [])],
+    // Listing photos upload straight from the browser to Cloudflare R2 with a signed link.
+    "connect-src": ["'self'", ...clerk, ...sentry, "https://*.r2.cloudflarestorage.com", ...(isDev ? ["ws:"] : [])],
     "frame-src": [turnstile, ...clerk],
     "worker-src": ["'self'", "blob:"],
     "manifest-src": ["'self'"],

@@ -140,3 +140,17 @@
     }
   }
 }
+
+/* Sonner's rich toast colours are just under WCAG AA contrast; darken the text. */
+html [data-sonner-toaster][data-sonner-theme="light"] {
+  --success-text: #14532d;
+  --error-text: #7f1d1d;
+  --warning-text: #713f12;
+  --info-text: #1e3a8a;
+}
+html [data-sonner-toaster][data-sonner-theme="dark"] {
+  --success-text: #bbf7d0;
+  --error-text: #fecaca;
+  --warning-text: #fef08a;
+  --info-text: #bfdbfe;
+}

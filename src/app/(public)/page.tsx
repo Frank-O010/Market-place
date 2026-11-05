@@ -3,10 +3,9 @@ import Link from "next/link";
 import { ShieldCheck, Smartphone, Truck } from "lucide-react";
 import { site } from "@/config/site";
 import { getLatestListings } from "@/server/queries/catalog";
-import { ListingCard } from "@/components/listing-card";
+import { ListingGrid, ListingGridSkeleton } from "@/components/listing-card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export default function HomePage() {
   return (
@@ -64,27 +63,5 @@ async function LatestListings() {
       />
     );
   }
-  return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-      {listings.map((listing) => (
-        <li key={listing.id}>
-          <ListingCard listing={listing} />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function ListingGridSkeleton() {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4" aria-busy aria-label="Loading listings">
-      {Array.from({ length: 8 }, (_, i) => (
-        <div key={i} className="flex flex-col gap-2">
-          <Skeleton className="aspect-square w-full" />
-          <Skeleton className="h-5 w-1/2" />
-          <Skeleton className="h-4 w-full" />
-        </div>
-      ))}
-    </div>
-  );
+  return <ListingGrid listings={listings} priorityCount={2} />;
 }

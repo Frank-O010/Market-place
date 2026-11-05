@@ -13,10 +13,12 @@ The work is split into six phases (see `docs/decisions.md` for the plan and the 
 | Data        | PostgreSQL, Prisma 7 (`@prisma/adapter-pg`)                                                   |
 | Auth        | Clerk (email, phone OTP, Google). A local dev sign-in is used for development and tests       |
 | Rate limits | Upstash Redis, with an in-memory fallback locally                                             |
+| Photos      | Cloudflare R2 (signed direct uploads, re-encoded to WebP with sharp); local disk in dev/CI    |
+| Search      | Meilisearch (typo-tolerant, faceted), with a Postgres `pg_trgm` fallback                      |
 | Monitoring  | Sentry                                                                                        |
 | Tests       | Vitest (unit), Playwright + axe (end to end, at phone and desktop sizes)                      |
 
-Coming in later phases: Paystack and M-Pesa Daraja payments, Meilisearch, Cloudflare R2 images, BullMQ worker, Resend, Africa's Talking and PostHog.
+Coming in later phases: Paystack and M-Pesa Daraja payments, a background worker, Resend, Africa's Talking and PostHog.
 
 ## Getting started
 
@@ -57,12 +59,15 @@ The design system gallery is at **/dev/components**.
 | `pnpm db:migrate`                                    | Create and apply a migration after changing `prisma/schema.prisma`                    |
 | `pnpm db:deploy`                                     | Apply migrations (CI and deploys)                                                     |
 | `pnpm db:seed` / `pnpm db:reset`                     | Reseed demo data / drop, migrate and reseed                                           |
+| `pnpm search:reindex`                                | Rebuild the Meilisearch index from Postgres (needs `MEILISEARCH_*`)                   |
 
 ## Environment variables
 
 All of them are documented in [`.env.example`](.env.example) and validated at startup by `src/lib/env.ts`. A missing or invalid value stops the app with a clear message. The important rule is that a deployed site must use `AUTH_PROVIDER=clerk`. The app refuses to start with dev sign-in on Vercel, and in any production build unless `ALLOW_DEV_AUTH=true` is set (only the e2e tests do that).
 
-Accounts you'll need before deploying: Clerk, a managed Postgres (Neon or Supabase), Upstash Redis, Sentry, and Vercel. Payments, search and image storage accounts come with Phases 2 and 3.
+Accounts you'll need before deploying: Clerk, a managed Postgres (Neon or Supabase), Upstash Redis, Sentry, Vercel, Cloudflare R2 (photos) and Meilisearch Cloud (search). Without R2, photo uploads are switched off on a deployed site; without Meilisearch, search falls back to Postgres. Payment accounts come with Phase 3.
+
+Phase 2 setup on Vercel: add `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `NEXT_PUBLIC_IMAGE_ORIGIN`, `MEILISEARCH_HOST`, `MEILISEARCH_ADMIN_KEY` and `CRON_SECRET`, redeploy, then run `pnpm search:reindex` once against production (or wait for the nightly cron).
 
 ## Architecture
 
@@ -75,6 +80,10 @@ flowchart LR
   RSC --> Policy[Policy module: can user, action, resource]
   RSC --> DB[(PostgreSQL via Prisma)]
   RSC --> RL[(Upstash Redis rate limits)]
+  Browser -->|signed PUT| R2[(Cloudflare R2 photos)]
+  RSC -->|re-encode with sharp| R2
+  RSC --> Meili[(Meilisearch)]
+  Cron[Vercel cron] -->|daily reindex| Vercel
   Clerk[Clerk] -->|signed webhook| Vercel
   Vercel --> Sentry[Sentry]
 ```
@@ -87,6 +96,9 @@ src/components/        feature components (header, listing card, …)
 src/server/auth/       identity (Clerk or dev), current user, Clerk sync
 src/server/policy/     can() and its tests — every permission decision lives here
 src/server/queries/    cached public reads (active listings only)
+src/server/search/     Meilisearch + Postgres fallback, index sync
+src/server/storage/    R2 and local-disk photo storage
+src/server/images/     photo checks and re-encoding
 src/server/actions/    server actions
 src/lib/               env validation, money (integer KES), security headers, utils
 tests/e2e/             Playwright tests
