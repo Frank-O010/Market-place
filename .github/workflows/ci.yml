@@ -46,7 +46,7 @@ jobs:
           MEILI_NO_ANALYTICS: "true"
         ports: ["7700:7700"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
 
@@ -114,7 +114,7 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       # No dependency install in this job, so no pnpm cache (an empty cache path fails the job).
       - uses: actions/setup-node@v7
