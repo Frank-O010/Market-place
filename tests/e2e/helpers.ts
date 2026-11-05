@@ -44,6 +44,23 @@ export async function signUp(page: Page, name: string) {
 
 /** Fails the test on any WCAG 2.2 A/AA violation. */
 export async function expectAccessible(page: Page) {
+  // A toast that is still sliding or fading (in, out, or behind a newer toast) is half
+  // transparent, so axe measures its text against a blend of colours and reports a contrast
+  // failure no one ever sees. Wait until every toast is mounted and its animations are done.
+  await page
+    .waitForFunction(
+      () => {
+        const toasts = [...document.querySelectorAll("[data-sonner-toast]")];
+        if (toasts.some((toast) => toast.getAttribute("data-mounted") !== "true")) return false;
+        return document.getAnimations().every((animation) => {
+          const target = (animation.effect as KeyframeEffect | null)?.target;
+          return animation.playState !== "running" || !target?.closest("[data-sonner-toaster]");
+        });
+      },
+      undefined,
+      { timeout: 3000, polling: 100 },
+    )
+    .catch(() => undefined);
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
     .analyze();
