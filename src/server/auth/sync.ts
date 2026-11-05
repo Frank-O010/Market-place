@@ -8,7 +8,7 @@ import type { ProviderProfile } from "./identity";
  */
 export async function upsertUserFromProvider(authProviderId: string, profile: ProviderProfile) {
   const name = profile.name?.trim() || profile.email?.split("@")[0] || "New user";
-  return db.user.upsert({
+  const user = await db.user.upsert({
     where: { authProviderId },
     create: {
       authProviderId,
@@ -25,6 +25,16 @@ export async function upsertUserFromProvider(authProviderId: string, profile: Pr
       emailVerified: profile.emailVerified,
       phoneVerified: profile.phoneVerified,
     },
+  });
+  await syncPhoneTier(user.id, profile.phoneVerified);
+  return user;
+}
+
+/** A seller with a verified phone number gets the "Phone verified" tier (higher tiers are kept). */
+export async function syncPhoneTier(userId: string, phoneVerified: boolean) {
+  await db.sellerProfile.updateMany({
+    where: { userId, verificationTier: phoneVerified ? "UNVERIFIED" : "PHONE_VERIFIED" },
+    data: { verificationTier: phoneVerified ? "PHONE_VERIFIED" : "UNVERIFIED" },
   });
 }
 

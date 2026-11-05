@@ -1,10 +1,14 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { BadgeCheck, MapPin, Store } from "lucide-react";
+import { BadgeCheck, MapPin, Phone, Store } from "lucide-react";
 import { z } from "zod";
 import { sellerPath } from "@/lib/urls";
-import { getPublicSeller, getSellerListings } from "@/server/queries/catalog";
+import { getCurrentUser } from "@/server/auth/current-user";
+import { getPublicSeller, getSellerListings, getSellerReviews } from "@/server/queries/catalog";
+import { ReportButton } from "@/components/trust/report-button";
+import { ReviewList } from "@/components/trust/review-list";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ListingGrid, ListingGridSkeleton } from "@/components/listing-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
@@ -61,6 +65,11 @@ async function Seller({
               <BadgeCheck className="size-5" aria-hidden /> Verified
             </span>
           )}
+          {seller.verificationTier === "PHONE_VERIFIED" && (
+            <span className="text-muted inline-flex items-center gap-1 text-base font-medium">
+              <Phone className="size-5" aria-hidden /> Phone verified
+            </span>
+          )}
         </h1>
         <div className="text-muted flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           {rating !== null ? <Rating value={rating} count={seller.ratingCount} /> : <span>New seller</span>}
@@ -88,6 +97,34 @@ async function Seller({
           hrefForPage={(p) => (p > 1 ? `${sellerPath(seller.slug)}?page=${p}` : sellerPath(seller.slug))}
         />
       </section>
+      <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+        <Reviews sellerId={seller.id} sellerName={seller.displayName} sellerUserId={seller.userId} />
+      </Suspense>
     </div>
+  );
+}
+
+async function Reviews({
+  sellerId,
+  sellerName,
+  sellerUserId,
+}: {
+  sellerId: string;
+  sellerName: string;
+  sellerUserId: string;
+}) {
+  const [reviews, user] = await Promise.all([getSellerReviews(sellerId), getCurrentUser()]);
+  return (
+    <section id="reviews" aria-labelledby="seller-reviews" className="flex scroll-mt-24 flex-col gap-4">
+      <h2 id="seller-reviews" className="text-xl font-semibold">
+        Reviews
+      </h2>
+      <ReviewList reviews={reviews} sellerName={sellerName} signedIn={Boolean(user)} />
+      {user?.id !== sellerUserId && (
+        <div>
+          <ReportButton targetType="USER" targetId={sellerUserId} signedIn={Boolean(user)} />
+        </div>
+      )}
+    </section>
   );
 }

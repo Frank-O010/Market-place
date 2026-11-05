@@ -26,7 +26,7 @@ export const seeded = {
 export async function signInAs(page: Page, name: string, redirectTo = "/") {
   await page.goto(`/dev/sign-in?redirect_url=${encodeURIComponent(redirectTo)}`);
   await page.getByRole("button", { name: `Sign in as ${name}` }).click();
-  await page.waitForURL((url) => url.pathname === redirectTo);
+  await page.waitForURL((url) => url.pathname + url.search === redirectTo || url.pathname === redirectTo);
 }
 
 export async function signUp(page: Page, name: string) {

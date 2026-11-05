@@ -8,6 +8,11 @@ import { getPaymentGateway } from "@/server/payments";
 import { BuyerPendingActions, ConfirmDeliveryButton, PaymentWatcher } from "@/components/orders/order-actions";
 import { OrderItems, OrderStatusBadge, OrderTimeline } from "@/components/orders/order-summary";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Rating } from "@/components/ui/rating";
+import { OpenDisputeButton } from "@/components/trust/dispute-forms";
+import { DisputePanel } from "@/components/trust/dispute-panel";
+import { MessageButton } from "@/components/trust/message-seller-button";
+import { ReviewForm } from "@/components/trust/review-forms";
 
 export const metadata: Metadata = { title: "Order", robots: { index: false } };
 
@@ -101,6 +106,32 @@ async function Order({
       )}
       {(order.status === "CANCELLED" || order.status === "REFUNDED") && order.cancelReason && (
         <p className="border-border rounded-lg border p-4">{order.cancelReason}</p>
+      )}
+      <DisputePanel order={order} perspective="buyer" />
+      {order.status === "COMPLETED" && !order.review && (
+        <ReviewForm orderId={order.id} sellerName={order.seller.displayName} />
+      )}
+      {order.review && (
+        <section aria-labelledby="your-review" className="border-border flex flex-col gap-2 rounded-lg border p-4">
+          <h2 id="your-review" className="font-semibold">
+            Your review
+          </h2>
+          <Rating value={order.review.rating} />
+          {order.review.body && <p className="whitespace-pre-line">{order.review.body}</p>}
+          {order.review.sellerReply && (
+            <p className="bg-surface-muted rounded-md p-3 text-sm">
+              <strong>Seller&apos;s reply:</strong> {order.review.sellerReply}
+            </p>
+          )}
+        </section>
+      )}
+      {order.status !== "PENDING_PAYMENT" && order.status !== "CANCELLED" && (
+        <div className="flex flex-wrap gap-2">
+          <MessageButton orderId={order.id} signedIn label="Message seller" />
+          {!order.dispute && (order.status === "PAID_HELD" || order.status === "SHIPPED") && (
+            <OpenDisputeButton orderId={order.id} />
+          )}
+        </div>
       )}
 
       <OrderItems order={order} perspective="buyer" />

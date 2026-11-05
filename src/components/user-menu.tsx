@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, Menu, Package, Shield, Store, User, Wrench } from "lucide-react";
+import { Bell, LayoutDashboard, MessageCircle, Menu, Package, Shield, Store, User, Wrench } from "lucide-react";
 import { getCurrentUser } from "@/server/auth/current-user";
 import { can } from "@/server/policy/can";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ export async function UserMenu() {
   const links = [
     { href: "/account", label: "My account", icon: User },
     { href: "/account/orders", label: "My orders", icon: Package },
+    { href: "/messages", label: "Messages", icon: MessageCircle },
+    { href: "/notifications", label: "Notifications", icon: Bell },
     isSeller
       ? { href: "/sell", label: "Seller dashboard", icon: LayoutDashboard }
       : { href: "/sell", label: "Start selling", icon: Store },

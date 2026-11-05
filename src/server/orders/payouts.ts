@@ -13,14 +13,22 @@ export async function createPayoutForOrder(orderId: string) {
   const payoutId = await db.$transaction(async (tx) => {
     const order = await tx.order.findUniqueOrThrow({
       where: { id: orderId },
-      select: { status: true, sellerId: true, totalMinor: true, platformFeeMinor: true, payoutId: true },
+      select: {
+        status: true,
+        sellerId: true,
+        totalMinor: true,
+        platformFeeMinor: true,
+        refundedMinor: true,
+        payoutId: true,
+      },
     });
     if (order.status !== "COMPLETED") throw new Error(`Order ${orderId} is not completed`);
     if (order.payoutId) return order.payoutId; // already created: idempotent
     const payout = await tx.payout.create({
       data: {
         sellerId: order.sellerId,
-        amountMinor: order.totalMinor - order.platformFeeMinor,
+        // A partial refund after a dispute comes out of the seller's share; commission is unchanged.
+        amountMinor: order.totalMinor - order.refundedMinor - order.platformFeeMinor,
         feeMinor: order.platformFeeMinor,
       },
       select: { id: true },
@@ -37,9 +45,17 @@ export async function sendPayout(payoutId: string) {
   const gateway = getPaymentGateway();
   const payout = await db.payout.findUniqueOrThrow({
     where: { id: payoutId },
-    select: { id: true, status: true, amountMinor: true, seller: { select: { payoutReference: true } } },
+    select: {
+      id: true,
+      status: true,
+      amountMinor: true,
+      seller: { select: { payoutReference: true } },
+      orders: { select: { fraudFlags: true, fraudReviewedAt: true } },
+    },
   });
   if (payout.status !== "PENDING" && payout.status !== "FAILED") return;
+  // A fraud-flagged order's payout waits until staff have reviewed it.
+  if (payout.orders.some((o) => o.fraudFlags.length > 0 && !o.fraudReviewedAt)) return;
   const recipient = payout.seller.payoutReference;
   if (!gateway || !recipient) return; // waits until the seller adds an M-Pesa number
 
@@ -82,7 +98,12 @@ export async function sendPayout(payoutId: string) {
 
 export async function retryPendingPayouts() {
   const pending = await db.payout.findMany({
-    where: { status: { in: ["PENDING", "FAILED"] }, seller: { payoutReference: { not: null } } },
+    where: {
+      status: { in: ["PENDING", "FAILED"] },
+      seller: { payoutReference: { not: null } },
+      // Skip payouts held for a fraud review (staff release those).
+      NOT: { orders: { some: { fraudFlags: { isEmpty: false }, fraudReviewedAt: null } } },
+    },
     select: { id: true },
     take: 100,
   });

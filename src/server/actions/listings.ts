@@ -12,6 +12,9 @@ import { loadListingForUpdate } from "@/server/listings/owned";
 import { assertCan, ForbiddenError } from "@/server/policy/can";
 import { enforceRateLimit } from "@/server/rate-limit";
 import { getStorage } from "@/server/storage";
+import { getSetting } from "@/server/settings";
+import { findProhibitedKeywords } from "@/lib/trust/prohibited";
+import { notifyStaff } from "@/server/notifications";
 import { expectedFailure, type ActionResult } from "./result";
 
 const idSchema = z.string().regex(/^[a-z0-9]{20,40}$/i, "Invalid id");
@@ -55,8 +58,16 @@ export async function saveListing(
     if (listingId) {
       const listing = await loadListingForUpdate(user, idSchema.parse(listingId));
       await enforceRateLimit("listingUpdate", user.id);
+      // Editing a live listing to add a prohibited word sends it back for a check.
+      const flagged =
+        listing.status === "ACTIVE" &&
+        findProhibitedKeywords(`${data.title}\n${data.description}`, await getSetting("prohibited_keywords")).length >
+          0;
       await db.$transaction([
-        db.listing.update({ where: { id: listing.id }, data: fields }),
+        db.listing.update({
+          where: { id: listing.id },
+          data: flagged ? { ...fields, status: "PENDING_REVIEW", moderationNote: null } : fields,
+        }),
         db.listingVariant.deleteMany({ where: { listingId: listing.id } }),
         db.listingVariant.createMany({ data: variants.map((v) => ({ ...v, listingId: listing.id })) }),
       ]);
@@ -88,7 +99,7 @@ const statusSchema = z.enum(["ACTIVE", "PAUSED", "DRAFT"]);
 export async function setListingStatus(
   listingId: string,
   status: "ACTIVE" | "PAUSED" | "DRAFT",
-): Promise<ActionResult> {
+): Promise<ActionResult<{ pendingReview: boolean } | undefined>> {
   try {
     const user = await requireUser();
     const listing = await loadListingForUpdate(user, idSchema.parse(listingId));
@@ -101,6 +112,8 @@ export async function setListingStatus(
       const full = await db.listing.findUniqueOrThrow({
         where: { id: listing.id },
         select: {
+          title: true,
+          description: true,
           stock: true,
           publishedAt: true,
           _count: { select: { images: { where: { status: "READY" } } } },
@@ -110,9 +123,30 @@ export async function setListingStatus(
       if (full._count.images === 0) return { ok: false, error: "Add at least one photo before publishing." };
       const inStock = full.variants.length ? full.variants.some((v) => v.stock > 0) : full.stock > 0;
       if (!inStock) return { ok: false, error: "Set the stock to at least 1 before publishing." };
+      const review = await needsReview(listing.id, listing.sellerId, full.title, full.description, !!full.publishedAt);
+      if (review) {
+        await db.listing.update({
+          where: { id: listing.id },
+          data: { status: "PENDING_REVIEW", moderationNote: null },
+        });
+        await audit({
+          action: "listing.sent_for_review",
+          actorId: user.id,
+          targetType: "listing",
+          targetId: listing.id,
+          metadata: { review },
+        });
+        await notifyStaff("staff.listing_review", {
+          title: "Listing waiting for review",
+          body: full.title,
+          url: "/admin/moderation",
+        });
+        listingChanged(listing);
+        return { ok: true, data: { pendingReview: true } };
+      }
       await db.listing.update({
         where: { id: listing.id },
-        data: { status: "ACTIVE", publishedAt: full.publishedAt ?? new Date() },
+        data: { status: "ACTIVE", publishedAt: full.publishedAt ?? new Date(), moderationNote: null },
       });
     } else {
       await db.listing.update({ where: { id: listing.id }, data: { status: next } });
@@ -125,10 +159,35 @@ export async function setListingStatus(
       metadata: { from: listing.status },
     });
     listingChanged(listing);
-    return { ok: true };
+    return { ok: true, data: undefined };
   } catch (error) {
     return expectedFailure(error);
   }
+}
+
+/**
+ * A listing needs a moderator before going live when it's a new seller's first listing (unless
+ * they're ID-verified) or when it mentions a possibly prohibited item. Returns the reason or null.
+ */
+async function needsReview(
+  listingId: string,
+  sellerId: string,
+  title: string,
+  description: string,
+  publishedBefore: boolean,
+) {
+  const hits = findProhibitedKeywords(`${title}\n${description}`, await getSetting("prohibited_keywords"));
+  if (hits.length > 0) return { reason: "keywords", hits };
+  if (publishedBefore) return null;
+  const seller = await db.sellerProfile.findUniqueOrThrow({
+    where: { id: sellerId },
+    select: { verificationTier: true },
+  });
+  if (seller.verificationTier === "ID_VERIFIED" || seller.verificationTier === "BUSINESS_VERIFIED") return null;
+  const approvedBefore = await db.listing.count({
+    where: { sellerId, id: { not: listingId }, publishedAt: { not: null }, status: { not: "REMOVED" } },
+  });
+  return approvedBefore === 0 ? { reason: "first_listing" } : null;
 }
 
 /** Deletes a listing and its photos. Listings with orders are kept and marked removed instead. */

@@ -25,6 +25,12 @@ export const RATE_LIMITS = {
   checkout: { limit: 10, windowSeconds: 600 },
   search: { limit: 60, windowSeconds: 60 },
   roleChange: { limit: 20, windowSeconds: 60 },
+  report: { limit: 10, windowSeconds: 3600 },
+  review: { limit: 10, windowSeconds: 3600 },
+  dispute: { limit: 5, windowSeconds: 3600 },
+  idVerification: { limit: 5, windowSeconds: 86_400 },
+  moderation: { limit: 120, windowSeconds: 60 },
+  notificationSettings: { limit: 30, windowSeconds: 3600 },
 } as const;
 
 export type RateLimitPolicy = keyof typeof RATE_LIMITS;

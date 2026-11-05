@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { updateTag } from "next/cache";
 import { fieldErrors } from "@/lib/listings/schema";
 import { sellerProfileSchema } from "@/lib/listings/seller-schema";
+import { syncPhoneTier } from "@/server/auth/sync";
 import { audit } from "@/server/audit";
 import { requireUser } from "@/server/auth/current-user";
 import { db } from "@/server/db";
@@ -59,6 +60,13 @@ export async function saveSellerProfile(_prev: ActionResult | null, form: FormDa
       }
       return saved;
     });
+    if (firstTime) {
+      const { phoneVerified } = await db.user.findUniqueOrThrow({
+        where: { id: user.id },
+        select: { phoneVerified: true },
+      });
+      await syncPhoneTier(user.id, phoneVerified);
+    }
     await audit({
       action: firstTime ? "seller.onboarded" : "seller.profile.update",
       actorId: user.id,
