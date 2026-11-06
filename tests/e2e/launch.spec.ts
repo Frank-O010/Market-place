@@ -53,6 +53,13 @@ test.describe("launch readiness", () => {
     await page.context().setOffline(false);
   });
 
+  test("the sign-in status check explains the visitor's own session", async ({ request }) => {
+    const response = await request.get("/api/auth/status");
+    expect(response.status()).toBe(200);
+    expect(response.headers()["cache-control"]).toContain("no-store");
+    expect(await response.json()).toMatchObject({ signedIn: false, account: "signed-out" });
+  });
+
   test("the health check reports the database is reachable", async ({ request }) => {
     const response = await request.get("/api/health");
     expect(response.status()).toBe(200);

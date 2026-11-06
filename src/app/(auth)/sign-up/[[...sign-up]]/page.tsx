@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { SignUp } from "@clerk/nextjs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AuthGate } from "../../auth-gate";
 import { DevAuthRedirect } from "../../dev-redirect";
 
 export const metadata: Metadata = { title: "Create an account", robots: { index: false } };
@@ -19,7 +20,9 @@ export default function SignUpPage(props: PageProps<"/sign-up/[[...sign-up]]">) 
   return (
     <div className="flex justify-center py-6">
       <Suspense fallback={<Skeleton className="h-[30rem] w-full max-w-sm" />}>
-        <SignUp />
+        <AuthGate>
+          <SignUp />
+        </AuthGate>
       </Suspense>
     </div>
   );
